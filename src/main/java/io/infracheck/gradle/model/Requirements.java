@@ -32,6 +32,7 @@ public class Requirements {
         private String namespace; // K8s 전용
         private List<FileCheck> files = new ArrayList<>();
         private List<ApiCheck> external_apis = new ArrayList<>();
+        private List<DirectoryCheck> directories = new ArrayList<>(); // VM 전용
         private List<ConfigMapCheck> configmaps = new ArrayList<>(); // K8s 전용
         private List<SecretCheck> secrets = new ArrayList<>();       // K8s 전용
         private List<PvcCheck> pvcs = new ArrayList<>();             // K8s 전용
@@ -44,6 +45,8 @@ public class Requirements {
         public void setFiles(List<FileCheck> files) { this.files = files; }
         public List<ApiCheck> getExternal_apis() { return external_apis; }
         public void setExternal_apis(List<ApiCheck> apis) { this.external_apis = apis; }
+        public List<DirectoryCheck> getDirectories() { return directories; }
+        public void setDirectories(List<DirectoryCheck> directories) { this.directories = directories; }
         public List<ConfigMapCheck> getConfigmaps() { return configmaps; }
         public void setConfigmaps(List<ConfigMapCheck> configmaps) { this.configmaps = configmaps; }
         public List<SecretCheck> getSecrets() { return secrets; }

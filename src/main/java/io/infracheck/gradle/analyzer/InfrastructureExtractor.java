@@ -153,6 +153,34 @@ public class InfrastructureExtractor {
         return new ArrayList<>(uniqueFiles.values());
     }
 
+    // ========== 디렉토리 권한 추출 (VM 전용) ==========
+
+    /**
+     * 디렉토리 권한 검증 항목을 추출합니다 (VM 환경 전용).
+     * 명시적 선언만 지원 (infrastructure.validation.directories)
+     */
+    @SuppressWarnings("unchecked")
+    public List<DirectoryCheck> extractDirectories() {
+        List<Map<String, Object>> explicitDirs =
+            YamlParser.getNestedValue(config, "infrastructure.validation.directories");
+
+        if (explicitDirs == null || explicitDirs.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<DirectoryCheck> directories = new ArrayList<>();
+        for (Map<String, Object> dirMap : explicitDirs) {
+            DirectoryCheck dir = new DirectoryCheck();
+            dir.setPath((String) dirMap.get("path"));
+            dir.setPermissions((String) dirMap.getOrDefault("permissions", "rwx"));
+            dir.setCritical((Boolean) dirMap.getOrDefault("critical", true));
+            dir.setDescription((String) dirMap.getOrDefault("description", ""));
+            directories.add(dir);
+        }
+
+        return directories;
+    }
+
     // ========== 외부 API 추출 ==========
 
     /**

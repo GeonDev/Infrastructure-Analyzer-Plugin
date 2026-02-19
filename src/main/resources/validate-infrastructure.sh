@@ -124,6 +124,84 @@ if command -v jq &> /dev/null; then
     fi
 fi
 
+# ─── 3. 디렉토리 권한 검증 ───
+echo ""
+echo "📁 디렉토리 권한 검증..."
+
+if command -v jq &> /dev/null; then
+    DIR_COUNT=$(jq -r '.infrastructure.directories | length' ${REQUIREMENTS_FILE} 2>/dev/null || echo "0")
+
+    if [ "${DIR_COUNT}" -gt 0 ]; then
+        for i in $(seq 0 $((DIR_COUNT - 1))); do
+            dir_path=$(jq -r ".infrastructure.directories[$i].path" ${REQUIREMENTS_FILE})
+            permissions=$(jq -r ".infrastructure.directories[$i].permissions" ${REQUIREMENTS_FILE})
+            critical=$(jq -r ".infrastructure.directories[$i].critical // true" ${REQUIREMENTS_FILE})
+            description=$(jq -r ".infrastructure.directories[$i].description // \"\"" ${REQUIREMENTS_FILE})
+            TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
+
+            # 디렉토리 존재 확인
+            dir_exists=$(ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} \
+                "[ -d '${dir_path}' ] && echo 'yes' || echo 'no'" 2>/dev/null)
+
+            if [ "${dir_exists}" != "yes" ]; then
+                if [ "${critical}" = "true" ]; then
+                    echo "  ❌ ${dir_path} - 디렉토리 없음 [CRITICAL]"
+                    CRITICAL_ERRORS=$((CRITICAL_ERRORS + 1))
+                else
+                    echo "  ⚠️  ${dir_path} - 디렉토리 없음 [WARNING]"
+                    WARNINGS=$((WARNINGS + 1))
+                fi
+                continue
+            fi
+
+            # 권한 체크
+            perm_ok=true
+            perm_msg=""
+
+            if [[ "${permissions}" == *"r"* ]]; then
+                can_read=$(ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} \
+                    "[ -r '${dir_path}' ] && echo 'yes' || echo 'no'" 2>/dev/null)
+                if [ "${can_read}" != "yes" ]; then
+                    perm_ok=false
+                    perm_msg="${perm_msg}읽기권한 없음 "
+                fi
+            fi
+
+            if [[ "${permissions}" == *"w"* ]]; then
+                can_write=$(ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} \
+                    "[ -w '${dir_path}' ] && echo 'yes' || echo 'no'" 2>/dev/null)
+                if [ "${can_write}" != "yes" ]; then
+                    perm_ok=false
+                    perm_msg="${perm_msg}쓰기권한 없음 "
+                fi
+            fi
+
+            if [[ "${permissions}" == *"x"* ]]; then
+                can_exec=$(ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} \
+                    "[ -x '${dir_path}' ] && echo 'yes' || echo 'no'" 2>/dev/null)
+                if [ "${can_exec}" != "yes" ]; then
+                    perm_ok=false
+                    perm_msg="${perm_msg}실행권한 없음 "
+                fi
+            fi
+
+            if [ "${perm_ok}" = "true" ]; then
+                echo "  ✅ ${dir_path} (${permissions}) - ${description}"
+            else
+                if [ "${critical}" = "true" ]; then
+                    echo "  ❌ ${dir_path} - ${perm_msg}[CRITICAL]"
+                    CRITICAL_ERRORS=$((CRITICAL_ERRORS + 1))
+                else
+                    echo "  ⚠️  ${dir_path} - ${perm_msg}[WARNING]"
+                    WARNINGS=$((WARNINGS + 1))
+                fi
+            fi
+        done
+    else
+        echo "  ℹ️  검증할 디렉토리가 없습니다."
+    fi
+fi
+
 # ─── 결과 출력 ───
 echo ""
 echo "============================================================"

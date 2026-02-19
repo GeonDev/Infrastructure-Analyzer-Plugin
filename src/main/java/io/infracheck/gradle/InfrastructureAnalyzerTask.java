@@ -96,6 +96,7 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
         infra.setCompany_domain(extractor.getCompanyDomain());
         infra.setFiles(extractor.extractFiles());
         infra.setExternal_apis(extractor.extractApis());
+        infra.setDirectories(extractor.extractDirectories()); // VM 전용
 
         return req;
     }
@@ -214,3 +215,4 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
 
         return false;
     }
+}

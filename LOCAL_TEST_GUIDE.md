@@ -77,6 +77,17 @@ infrastructure:
         critical: false
         description: "외부 API (경고만)"
     
+    # 명시적 디렉토리 권한 선언 (선택, VM 전용)
+    directories:
+      - path: "/var/log/myapp"
+        permissions: "rwx"
+        critical: true
+        description: "애플리케이션 로그 디렉토리"
+      - path: "/data/uploads"
+        permissions: "rw"
+        critical: true
+        description: "파일 업로드 디렉토리"
+    
     # 제외 패턴 (선택)
     exclude-patterns:
       - "localhost"
@@ -162,6 +173,20 @@ cat build/infrastructure/requirements-prod.json
         "critical": false,
         "description": "외부 API (경고만)"
       }
+    ],
+    "directories": [
+      {
+        "path": "/var/log/myapp",
+        "permissions": "rwx",
+        "critical": true,
+        "description": "애플리케이션 로그 디렉토리"
+      },
+      {
+        "path": "/data/uploads",
+        "permissions": "rw",
+        "critical": true,
+        "description": "파일 업로드 디렉토리"
+      }
     ]
   }
 }
@@ -170,9 +195,11 @@ cat build/infrastructure/requirements-prod.json
 ### 검증 스크립트 확인
 
 ```bash
-ls -la bamboo-scripts/
-cat bamboo-scripts/validate-infrastructure.sh
+ls -la build/infrastructure/
+cat build/infrastructure/validate-infrastructure.sh
 ```
+
+**참고:** VM 환경에서는 `validate-infrastructure.sh`가 생성되며, 파일/API/디렉토리 권한을 검증합니다. K8s 환경에서는 `validate-k8s-infrastructure.sh`가 생성됩니다.
 
 ---
 
@@ -181,14 +208,37 @@ cat bamboo-scripts/validate-infrastructure.sh
 검증 스크립트를 로컬에서 실행해볼 수 있습니다:
 
 ```bash
-# requirements.json을 루트로 복사
-cp build/infrastructure/requirements-prod.json .
-
 # 스크립트 실행 (SSH 접속 정보 필요)
 export PROD_SERVER_HOST="your-server.com"
 export PROD_SERVER_USER="deploy"
 
-bash bamboo-scripts/validate-infrastructure.sh prod
+bash build/infrastructure/validate-infrastructure.sh prod
+```
+
+**예상 출력:**
+```
+📁 인프라 검증 시작 (환경: prod)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 파일 존재 검증...
+  ✅ /nas2/was/key/test.pem - 테스트 인증서
+
+🌐 외부 API 접근 검증...
+  ✅ https://api.abc.co.kr (HTTP 200) - 메인 API
+  ✅ https://www.google.com (HTTP 200) - 외부 API (경고만)
+
+📁 디렉토리 권한 검증...
+  ✅ /var/log/myapp (rwx) - 애플리케이션 로그 디렉토리
+  ❌ /data/uploads - 쓰기권한 없음 [CRITICAL]
+
+============================================================
+  검증 결과 요약
+============================================================
+  총 검증 항목: 5
+  성공: 4
+  실패 (CRITICAL): 1
+  경고 (WARNING): 0
+============================================================
 ```
 
 **주의:** SSH 접속이 설정되어 있지 않으면 경고만 표시되고 종료됩니다.
@@ -266,12 +316,9 @@ rm -rf ~/.gradle/caches/modules-2/files-2.1/com.company.gradle/infrastructure-an
 ```bash
 # 생성된 파일 정리 (선택)
 rm -rf build/infrastructure/
-rm -rf bamboo-scripts/
-rm requirements-*.json
 
 # Git에서 제외 (.gitignore에 추가)
 echo "build/infrastructure/" >> .gitignore
-echo "requirements-*.json" >> .gitignore
 ```
 
 ---

@@ -29,6 +29,7 @@ io.infracheck.gradle/
 │   ├── Requirements.java                # 메인 요구사항 모델
 │   ├── FileCheck.java                   # 파일 검증 스펙
 │   ├── ApiCheck.java                    # API 검증 스펙
+│   ├── DirectoryCheck.java              # 디렉토리 권한 스펙 (VM 전용)
 │   ├── ConfigMapCheck.java              # K8s ConfigMap 스펙
 │   ├── SecretCheck.java                 # K8s Secret 스펙
 │   └── PvcCheck.java                    # K8s PVC 스펙
@@ -55,6 +56,10 @@ io.infracheck.gradle/
 ### 데이터 모델
 - `Requirements`: 모든 검증 스펙을 포함하는 루트 모델
 - Check 모델들: 검증 항목의 타입 안전한 표현
+  - `FileCheck`: 파일 존재 검증
+  - `ApiCheck`: 외부 API 접근 검증
+  - `DirectoryCheck`: 디렉토리 권한 검증 (VM 전용)
+  - `ConfigMapCheck`, `SecretCheck`, `PvcCheck`: K8s 리소스 검증
 
 ### 유틸리티
 - `ConfigParser`: YAML 및 Properties 파일 자동 감지 및 파싱

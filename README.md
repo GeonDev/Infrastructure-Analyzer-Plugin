@@ -15,6 +15,7 @@
 - **프로파일별 생성**: dev, stg, prod 환경별 requirements.json 생성
 - **검증 스크립트 자동 생성**: VM/K8s 환경에 맞는 검증 스크립트 자동 복사
 - **회사 도메인 우선 검증**: 회사 도메인은 critical, 외부 도메인은 경고만
+- **디렉토리 권한 검증**: VM 환경에서 디렉토리 읽기/쓰기/실행 권한 자동 검증
 
 ## 설치
 
@@ -186,6 +187,17 @@ infrastructure:
         critical: false
         description: "결제 시스템 (외부)"
     
+    # 명시적 디렉토리 권한 선언 (선택, VM 전용)
+    directories:
+      - path: "/var/log/myapp"
+        permissions: "rwx"  # 읽기/쓰기/실행
+        critical: true
+        description: "애플리케이션 로그 디렉토리"
+      - path: "/data/uploads"
+        permissions: "rw"   # 읽기/쓰기만
+        critical: true
+        description: "파일 업로드 디렉토리"
+    
     # 제외 패턴 (선택)
     exclude-patterns:
       - "localhost"
@@ -317,6 +329,12 @@ infrastructure:
 - `https?://[domain]` 형식의 URL 자동 감지
 - 회사 도메인 포함 시 `critical: true`
 - 외부 도메인은 `critical: false` (경고만)
+
+### 디렉토리 권한 (VM 전용)
+
+- 명시적 선언만 지원 (자동 추출 없음)
+- 권한: `r` (읽기), `w` (쓰기), `x` (실행) 조합
+- 예: `rwx`, `rw`, `rx`
 
 ## Bamboo 파이프라인 설정
 
