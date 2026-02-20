@@ -1,4 +1,4 @@
-package io.infracheck.gradle.model;
+package io.infracheck.core.model;
 
 /**
  * NAS/로컬 파일 검증 항목

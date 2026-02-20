@@ -1,4 +1,4 @@
-package io.infracheck.gradle.model;
+package io.infracheck.core.model;
 
 import java.util.ArrayList;
 import java.util.List;

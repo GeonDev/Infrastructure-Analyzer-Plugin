@@ -12,13 +12,19 @@ java {
 }
 
 repositories {
+    mavenLocal()  // core 모듈 로컬 참조용
     mavenCentral()
 }
 
 dependencies {
+    // Gradle API (java-gradle-plugin이 자동 추가하지만 IDE 인식을 위해 명시)
+    compileOnly gradleApi()
+
+    // core 모듈 (공통 분석 로직)
+    implementation 'io.infracheck:infrastructure-analyzer-core:1.0.1'
+
+    // JSON 직렬화 (Task에서 직접 사용)
     implementation 'com.google.code.gson:gson:2.10.1'
-    implementation 'org.yaml:snakeyaml:2.2'
-    implementation 'com.github.javaparser:javaparser-core:3.25.8'
 }
 
 gradlePlugin {

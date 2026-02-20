@@ -1,9 +1,10 @@
 package io.infracheck.gradle;
 
+import io.infracheck.core.DeploymentType;
+import io.infracheck.core.analyzer.InfrastructureExtractor;
+import io.infracheck.core.model.Requirements;
+import io.infracheck.core.util.ConfigParser;
 import io.infracheck.gradle.analyzer.DeploymentDetector;
-import io.infracheck.gradle.analyzer.InfrastructureExtractor;
-import io.infracheck.gradle.model.*;
-import io.infracheck.gradle.util.ConfigParser;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.gradle.api.DefaultTask;
@@ -12,7 +13,6 @@ import org.gradle.api.tasks.TaskAction;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -20,7 +20,7 @@ import java.util.Map;
  */
 public class InfrastructureAnalyzerTask extends DefaultTask {
 
-    private static final String[] PROFILES = {"dev", "stg", "prod"};
+    private static final String[] PROFILES = {"dev", "stage", "prod"};
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     @TaskAction
@@ -32,7 +32,7 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
         DeploymentType deploymentType = DeploymentDetector.detect(getProject());
         getLogger().lifecycle("✅ 감지된 배포 환경: {}", deploymentType);
 
-        // 2. 설정 파일 확인 (YAML 또는 Properties)
+        // 2. 설정 파일 확인
         File projectDir = getProject().getProjectDir();
         File yamlFile = new File(projectDir, "src/main/resources/application.yaml");
         File ymlFile = new File(projectDir, "src/main/resources/application.yml");
@@ -43,12 +43,11 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
             return;
         }
 
-        String configType = yamlFile.exists() ? "application.yaml" 
-                          : ymlFile.exists() ? "application.yml" 
+        String configType = yamlFile.exists() ? "application.yaml"
+                          : ymlFile.exists() ? "application.yml"
                           : "application.properties";
         getLogger().lifecycle("📄 설정 파일: {}", configType);
 
-        // 소스코드 분석 활성화 여부 확인
         File javaSourceDir = new File(projectDir, "src/main/java");
         if (javaSourceDir.exists()) {
             getLogger().lifecycle("🔍 소스코드 분석 활성화");
@@ -68,12 +67,11 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
 
             Requirements requirements;
             if (deploymentType == DeploymentType.KUBERNETES) {
-                requirements = generateK8sRequirements(profile, config);
+                requirements = generateK8sRequirements(profile, config, projectDir);
             } else {
-                requirements = generateVmRequirements(profile, config);
+                requirements = generateVmRequirements(profile, config, projectDir);
             }
 
-            // JSON 파일 생성
             String filename = (deploymentType == DeploymentType.KUBERNETES)
                 ? "requirements-k8s-" + profile + ".json"
                 : "requirements-" + profile + ".json";
@@ -87,8 +85,8 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
         copyValidationScript(deploymentType);
     }
 
-    private Requirements generateVmRequirements(String profile, Map<String, Object> config) {
-        InfrastructureExtractor extractor = new InfrastructureExtractor(config, getProject().getProjectDir());
+    private Requirements generateVmRequirements(String profile, Map<String, Object> config, File projectDir) {
+        InfrastructureExtractor extractor = new InfrastructureExtractor(config, projectDir);
 
         Requirements req = new Requirements();
         req.setProject(getProject().getName());
@@ -99,13 +97,13 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
         infra.setCompany_domain(extractor.getCompanyDomain());
         infra.setFiles(extractor.extractFiles());
         infra.setExternal_apis(extractor.extractApis());
-        infra.setDirectories(extractor.extractDirectories()); // VM 전용
+        infra.setDirectories(extractor.extractDirectories());
 
         return req;
     }
 
-    private Requirements generateK8sRequirements(String profile, Map<String, Object> config) {
-        InfrastructureExtractor extractor = new InfrastructureExtractor(config, getProject().getProjectDir());
+    private Requirements generateK8sRequirements(String profile, Map<String, Object> config, File projectDir) {
+        InfrastructureExtractor extractor = new InfrastructureExtractor(config, projectDir);
 
         Requirements req = new Requirements();
         req.setProject(getProject().getName());
@@ -133,7 +131,6 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
     }
 
     private void copyValidationScript(DeploymentType deploymentType) {
-        // build/infrastructure 디렉토리로 통일 (Bamboo Artifact 설정 간소화)
         File targetDir = getProject().getLayout().getBuildDirectory().dir("infrastructure").get().getAsFile();
 
         String scriptName = (deploymentType == DeploymentType.KUBERNETES)
@@ -142,7 +139,6 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
 
         File targetFile = new File(targetDir, scriptName);
 
-        // 빌드마다 최신 스크립트로 덮어쓰기
         try (InputStream is = getClass().getResourceAsStream("/" + scriptName)) {
             if (is == null) {
                 getLogger().warn("⚠️  리소스에서 스크립트를 찾을 수 없습니다: {}", scriptName);
@@ -150,17 +146,12 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
             }
             Files.copy(is, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             targetFile.setExecutable(true);
-
             getLogger().lifecycle("✅ 생성됨: build/infrastructure/{}", scriptName);
         } catch (IOException e) {
             getLogger().error("❌ 스크립트 복사 실패: {}", scriptName, e);
         }
     }
 
-    /**
-     * mavenLocal 사용 여부를 확인하고 경고를 출력합니다.
-     * CI 환경에서는 더 강력한 경고를 표시합니다.
-     */
     private void checkMavenLocalUsage() {
         File settingsFile = new File(getProject().getRootDir(), "settings.gradle");
         if (!settingsFile.exists()) {
@@ -172,20 +163,15 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
                 String content = new String(java.nio.file.Files.readAllBytes(settingsFile.toPath()));
                 if (content.contains("mavenLocal()")) {
                     boolean isCI = isCIEnvironment();
-                    
                     if (isCI) {
-                        // CI 환경에서는 강력한 경고
                         getLogger().error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                         getLogger().error("❌ CRITICAL: settings.gradle에 mavenLocal()이 설정되어 있습니다!");
                         getLogger().error("❌ CI/CD 환경에서는 mavenLocal() 사용이 금지됩니다.");
                         getLogger().error("❌ 운영 배포 시 Nexus 저장소만 사용해야 합니다.");
-                        getLogger().error("❌ 즉시 제거하고 다시 커밋하세요!");
                         getLogger().error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                     } else {
-                        // 로컬 환경에서는 부드러운 경고
                         getLogger().warn("⚠️  INFO: settings.gradle에 mavenLocal()이 설정되어 있습니다.");
-                        getLogger().warn("⚠️  로컬 테스트 중이라면 정상입니다.");
-                        getLogger().warn("⚠️  운영 배포 전에는 반드시 제거하세요.");
+                        getLogger().warn("⚠️  로컬 테스트 중이라면 정상입니다. 운영 배포 전에는 반드시 제거하세요.");
                     }
                 }
             } catch (Exception e) {
@@ -194,28 +180,14 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
         }
     }
 
-    /**
-     * CI 환경 여부를 판단합니다.
-     * Bamboo, Jenkins, GitLab CI, GitHub Actions 등을 감지합니다.
-     */
     private boolean isCIEnvironment() {
-        // 일반적인 CI 환경 변수 확인
         String[] ciEnvVars = {
-            "CI",                    // 대부분의 CI 시스템
-            "BAMBOO_BUILD_NUMBER",   // Bamboo
-            "JENKINS_HOME",          // Jenkins
-            "GITLAB_CI",             // GitLab CI
-            "GITHUB_ACTIONS",        // GitHub Actions
-            "CIRCLECI",              // CircleCI
-            "TRAVIS"                 // Travis CI
+            "CI", "BAMBOO_BUILD_NUMBER", "JENKINS_HOME",
+            "GITLAB_CI", "GITHUB_ACTIONS", "CIRCLECI", "TRAVIS"
         };
-
         for (String envVar : ciEnvVars) {
-            if (System.getenv(envVar) != null) {
-                return true;
-            }
+            if (System.getenv(envVar) != null) return true;
         }
-
         return false;
     }
 }

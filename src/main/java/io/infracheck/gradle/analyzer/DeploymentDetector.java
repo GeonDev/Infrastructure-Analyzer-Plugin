@@ -1,85 +1,38 @@
 package io.infracheck.gradle.analyzer;
 
-import io.infracheck.gradle.DeploymentType;
+import io.infracheck.core.DeploymentType;
 import org.gradle.api.Project;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
- * 배포 환경(VM/K8s)을 자동 감지하는 로직
+ * Gradle 플러그인용 DeploymentDetector 래퍼
+ * core 모듈의 DeploymentDetector에 Gradle Project 정보를 전달합니다.
  */
 public class DeploymentDetector {
 
-    // 쿠버네티스 관련 키워드
-    private static final String[] K8S_YAML_KEYWORDS = {
-        "kubernetes.io",
-        "k8s.",
-        "mkube-proxy",
-        "livenessstate",
-        "readinessstate",
-        "liveness-probe",
-        "readiness-probe",
-        "configmap",
-        "config-map",
-        "service-account",
-        "serviceaccount"
-    };
-
-    // 쿠버네티스 관련 Gradle 플러그인
-    private static final String[] K8S_PLUGINS = {
-        "com.google.cloud.tools.jib",
-        "org.springframework.boot.experimental.thin-launcher"
-    };
-
-    /**
-     * 프로젝트의 배포 환경을 자동 감지합니다.
-     *
-     * 감지 순서:
-     * 1. build.gradle에 K8s 관련 플러그인 확인
-     * 2. application.yml에 K8s 관련 키워드 확인
-     * 3. k8s 디렉토리 존재 확인
-     * 4. 기본값: VM
-     */
     public static DeploymentType detect(Project project) {
-        // 1. K8s 플러그인 확인
-        for (String pluginId : K8S_PLUGINS) {
+        // 적용된 플러그인 ID 목록 수집
+        Set<String> appliedPluginIds = project.getPlugins().stream()
+            .map(plugin -> plugin.getClass().getName())
+            .collect(Collectors.toSet());
+
+        // Gradle 플러그인은 ID로 확인
+        Set<String> pluginIds = Set.of(
+            "com.google.cloud.tools.jib",
+            "org.springframework.boot.experimental.thin-launcher"
+        );
+
+        for (String pluginId : pluginIds) {
             if (project.getPlugins().hasPlugin(pluginId)) {
-                return DeploymentType.KUBERNETES;
+                appliedPluginIds = Set.of(pluginId);
+                break;
             }
         }
 
-        // 2. application.yaml 또는 application.yml 분석
-        File appYaml = new File(project.getProjectDir(),
-            "src/main/resources/application.yaml");
-        File appYml = new File(project.getProjectDir(),
-            "src/main/resources/application.yml");
-        
-        File configFile = appYaml.exists() ? appYaml : (appYml.exists() ? appYml : null);
-        
-        if (configFile != null) {
-            try {
-                String content = Files.readString(configFile.toPath());
-                String lowerContent = content.toLowerCase();
-
-                for (String keyword : K8S_YAML_KEYWORDS) {
-                    if (lowerContent.contains(keyword.toLowerCase())) {
-                        return DeploymentType.KUBERNETES;
-                    }
-                }
-            } catch (IOException e) {
-                // 파일 읽기 실패 시 무시
-            }
-        }
-
-        // 3. k8s 디렉토리 확인
-        File k8sDir = new File(project.getProjectDir(), "k8s");
-        if (k8sDir.exists() && k8sDir.isDirectory()) {
-            return DeploymentType.KUBERNETES;
-        }
-
-        // 4. 기본값: VM
-        return DeploymentType.VM;
+        return io.infracheck.core.analyzer.DeploymentDetector.detect(
+            project.getProjectDir(), appliedPluginIds
+        );
     }
 }

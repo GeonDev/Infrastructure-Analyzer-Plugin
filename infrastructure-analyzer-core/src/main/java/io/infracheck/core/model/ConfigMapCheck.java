@@ -1,21 +1,19 @@
-package io.infracheck.gradle.model;
+package io.infracheck.core.model;
 
 /**
- * 쿠버네티스 PersistentVolumeClaim 검증 항목
+ * 쿠버네티스 ConfigMap 검증 항목
  */
-public class PvcCheck {
+public class ConfigMapCheck {
     private String name;
     private boolean critical;
     private String description;
-    private String mountPath;
 
-    public PvcCheck() {}
+    public ConfigMapCheck() {}
 
-    public PvcCheck(String name, boolean critical, String description, String mountPath) {
+    public ConfigMapCheck(String name, boolean critical, String description) {
         this.name = name;
         this.critical = critical;
         this.description = description;
-        this.mountPath = mountPath;
     }
 
     public String getName() { return name; }
@@ -24,6 +22,4 @@ public class PvcCheck {
     public void setCritical(boolean critical) { this.critical = critical; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-    public String getMountPath() { return mountPath; }
-    public void setMountPath(String mountPath) { this.mountPath = mountPath; }
 }

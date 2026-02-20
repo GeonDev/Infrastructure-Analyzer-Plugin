@@ -2,28 +2,47 @@
 
 플러그인을 Nexus에 배포하기 전에 로컬에서 테스트하는 방법입니다.
 
-## 1단계: 플러그인을 Maven Local에 배포
+## 1단계: core 모듈을 Maven Local에 배포
+
+core 모듈은 Gradle 플러그인과 Maven 플러그인이 공유하는 공통 분석 로직입니다.
+**반드시 core 모듈을 먼저 설치해야 합니다.**
 
 ```bash
-cd infrastructure-analyzer-plugin
-./gradlew publishToMavenLocal
+cd infrastructure-analyzer-core
+mvn clean install
 ```
 
-이 명령은 플러그인을 `~/.m2/repository/`에 설치합니다.
+이 명령은 core 모듈을 `~/.m2/repository/`에 설치합니다.
 
 **확인:**
 ```bash
-ls -la ~/.m2/repository/io/infracheck/infrastructure-analyzer-plugin/1.0.0/
+ls -la ~/.m2/repository/io/infracheck/infrastructure-analyzer-core/1.0.1/
 ```
-
-다음 파일들이 있어야 합니다:
-- `infrastructure-analyzer-plugin-1.0.0.jar`
-- `infrastructure-analyzer-plugin-1.0.0.pom`
-- `infrastructure-analyzer-plugin-1.0.0.module`
 
 ---
 
-## 2단계: 테스트 프로젝트 설정
+## 2단계: Gradle 플러그인을 Maven Local에 배포
+
+```bash
+# 프로젝트 루트에서 실행
+./gradlew clean publishToMavenLocal
+```
+
+이 명령은 Gradle 플러그인을 `~/.m2/repository/`에 설치합니다.
+
+**확인:**
+```bash
+ls -la ~/.m2/repository/io/infracheck/infrastructure-analyzer-plugin/1.0.1/
+```
+
+다음 파일들이 있어야 합니다:
+- `infrastructure-analyzer-plugin-1.0.1.jar`
+- `infrastructure-analyzer-plugin-1.0.1.pom`
+- `infrastructure-analyzer-plugin-1.0.1.module`
+
+---
+
+## 3단계: 테스트 프로젝트 설정
 
 #### settings.gradle 수정
 
@@ -45,7 +64,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.1'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'io.infracheck.infrastructure-analyzer' version '1.0.0'  // ← 추가
+    id 'io.infracheck.infrastructure-analyzer' version '1.0.1'  // ← 추가
 }
 
 // ... 나머지 설정
@@ -94,7 +113,7 @@ infrastructure:
 
 ---
 
-## 3단계: 빌드 실행
+## 4단계: 빌드 실행
 
 ```bash
 cd ..  # 루트 프로젝트로 이동
@@ -122,7 +141,7 @@ BUILD SUCCESSFUL
 
 ---
 
-## 4단계: 생성된 파일 확인
+## 5단계: 생성된 파일 확인
 
 ### requirements.json 파일 확인
 

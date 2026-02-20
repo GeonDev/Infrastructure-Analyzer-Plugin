@@ -1,16 +1,16 @@
-package io.infracheck.gradle.model;
+package io.infracheck.core.model;
 
 /**
- * 쿠버네티스 ConfigMap 검증 항목
+ * 쿠버네티스 Secret 검증 항목
  */
-public class ConfigMapCheck {
+public class SecretCheck {
     private String name;
     private boolean critical;
     private String description;
 
-    public ConfigMapCheck() {}
+    public SecretCheck() {}
 
-    public ConfigMapCheck(String name, boolean critical, String description) {
+    public SecretCheck(String name, boolean critical, String description) {
         this.name = name;
         this.critical = critical;
         this.description = description;
