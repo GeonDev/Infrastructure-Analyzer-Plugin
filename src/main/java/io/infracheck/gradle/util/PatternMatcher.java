@@ -64,6 +64,20 @@ public class PatternMatcher {
     }
 
     /**
+     * 순수 도메인명인지 확인합니다. (예: "api.jtbc.co.kr", "voddev.jtbc.co.kr")
+     * http(s):// 없이 도메인만 있는 경우를 감지합니다.
+     */
+    public static boolean isDomainName(String value) {
+        if (value == null || value.isEmpty()) return false;
+        // 이미 URL이면 제외
+        if (value.startsWith("http://") || value.startsWith("https://")) return false;
+        // 경로나 특수문자 포함 시 제외
+        if (value.contains("/") || value.contains(" ") || value.contains("$")) return false;
+        // 점(.)이 포함된 도메인 형태: xxx.yyy.zzz
+        return value.matches("^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$");
+    }
+
+    /**
      * 제외 패턴에 해당하는지 확인합니다.
      * 기본 제외 패턴 + 사용자 정의 제외 패턴을 모두 확인합니다.
      */

@@ -6,14 +6,14 @@
 
 ```bash
 cd infrastructure-analyzer-plugin
-../gradlew publishToMavenLocal
+./gradlew publishToMavenLocal
 ```
 
 이 명령은 플러그인을 `~/.m2/repository/`에 설치합니다.
 
 **확인:**
 ```bash
-ls -la ~/.m2/repository/com/company/gradle/infrastructure-analyzer-plugin/1.0.0/
+ls -la ~/.m2/repository/io/infracheck/infrastructure-analyzer-plugin/1.0.0/
 ```
 
 다음 파일들이 있어야 합니다:
@@ -24,8 +24,6 @@ ls -la ~/.m2/repository/com/company/gradle/infrastructure-analyzer-plugin/1.0.0/
 ---
 
 ## 2단계: 테스트 프로젝트 설정
-
-### 현재 프로젝트(qa-agent-server)에서 테스트
 
 #### settings.gradle 수정
 
@@ -38,7 +36,6 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'qa-agent-server'
 ```
 
 #### build.gradle 수정
@@ -48,7 +45,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.1'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'com.company.infrastructure-analyzer' version '1.0.0'  // ← 추가
+    id 'io.infracheck.infrastructure-analyzer' version '1.0.0'  // ← 추가
 }
 
 // ... 나머지 설정
@@ -93,11 +90,6 @@ infrastructure:
       - "localhost"
       - "127.0.0.1"
       - "*.local"
-
-# 기존 설정...
-spring:
-  application:
-    name: qa-agent-server
 ```
 
 ---
@@ -267,12 +259,12 @@ cd ..
 
 **에러:**
 ```
-Plugin [id: 'com.company.infrastructure-analyzer', version: '1.0.0'] was not found
+Plugin [id: 'io.infracheck.infrastructure-analyzer', version: '1.0.0'] was not found
 ```
 
 **해결:**
 1. `publishToMavenLocal`이 성공했는지 확인
-2. `~/.m2/repository/com/company/gradle/infrastructure-analyzer-plugin/1.0.0/` 디렉토리 존재 확인
+2. `~/.m2/repository/io/infracheck/infrastructure-analyzer-plugin/1.0.0/` 디렉토리 존재 확인
 3. `settings.gradle`에 `mavenLocal()` 추가 확인
 
 ### 문제 2: 이전 버전이 캐시됨
@@ -280,7 +272,7 @@ Plugin [id: 'com.company.infrastructure-analyzer', version: '1.0.0'] was not fou
 **해결:**
 ```bash
 # Gradle 캐시 삭제
-rm -rf ~/.gradle/caches/modules-2/files-2.1/com.company.gradle/infrastructure-analyzer-plugin
+rm -rf ~/.gradle/caches/modules-2/files-2.1/io.infracheck/infrastructure-analyzer-plugin
 
 # 재빌드
 ./gradlew clean build --refresh-dependencies
@@ -301,11 +293,49 @@ rm -rf ~/.gradle/caches/modules-2/files-2.1/com.company.gradle/infrastructure-an
 
 ## 다른 프로젝트에서 테스트
 
-다른 Spring Boot 프로젝트가 있다면:
+### 단일 모듈 프로젝트
 
 1. 해당 프로젝트의 `settings.gradle`에 `mavenLocal()` 추가
 2. `build.gradle`에 플러그인 추가
-3. `./gradlew build` 실행
+3. `./gradlew analyzeInfrastructure` 실행
+
+### 멀티모듈 프로젝트 (서브모듈 독립 배포)
+
+각 서브모듈이 독립적으로 배포되는 구조에서는 배포 대상 서브모듈에만 플러그인을 적용합니다.
+
+**루트 settings.gradle:**
+```gradle
+pluginManagement {
+    repositories {
+        mavenLocal()  // 로컬 테스트용
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'my-multi-module'
+include 'api-server', 'batch-server', 'admin-server'
+```
+
+**배포 대상 서브모듈 build.gradle (예: api-server/build.gradle):**
+```gradle
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.1'
+    id 'io.infracheck.infrastructure-analyzer' version '1.0.1'
+}
+```
+
+**실행:**
+```bash
+# 특정 서브모듈만 분석
+./gradlew :api-server:analyzeInfrastructure
+
+# 플러그인이 적용된 모든 서브모듈 한번에 분석
+./gradlew analyzeInfrastructure
+```
+
+각 서브모듈의 `src/main/resources/application.yaml(yml)` 및 `src/main/java`를 기준으로 독립적으로 분석하며, 산출물은 각 서브모듈의 `build/infrastructure/`에 생성됩니다.
 
 ---
 

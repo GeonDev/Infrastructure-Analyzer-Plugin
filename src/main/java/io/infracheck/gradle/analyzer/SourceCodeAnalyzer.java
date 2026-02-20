@@ -3,6 +3,7 @@ package io.infracheck.gradle.analyzer;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 
 import java.io.File;
@@ -106,10 +107,18 @@ public class SourceCodeAnalyzer {
 
     /**
      * CompilationUnit에서 파일 경로 추출
+     * 어노테이션(annotation) 내부의 문자열은 제외합니다
      */
     private void extractFilePathsFromCU(CompilationUnit cu, Set<String> paths) {
-        // 1. 문자열 리터럴 검사
+        // 어노테이션 내부에 있는 StringLiteralExpr 수집 (제외 대상)
+        Set<StringLiteralExpr> annotationStrings = new HashSet<>();
+        cu.findAll(AnnotationExpr.class).forEach(annotation ->
+            annotationStrings.addAll(annotation.findAll(StringLiteralExpr.class))
+        );
+
+        // 1. 문자열 리터럴 검사 (어노테이션 내부 제외)
         cu.findAll(StringLiteralExpr.class).forEach(expr -> {
+            if (annotationStrings.contains(expr)) return; // 어노테이션 내부 스킵
             String value = expr.getValue();
             if (isValidFilePath(value) && !shouldExclude(value)) {
                 paths.add(value);
@@ -135,10 +144,18 @@ public class SourceCodeAnalyzer {
 
     /**
      * CompilationUnit에서 URL 추출
+     * 어노테이션(annotation) 내부의 문자열은 제외합니다 (@Schema example 등)
      */
     private void extractUrlsFromCU(CompilationUnit cu, Set<String> urls) {
-        // 1. 문자열 리터럴 검사
+        // 어노테이션 내부에 있는 StringLiteralExpr 수집 (제외 대상)
+        Set<StringLiteralExpr> annotationStrings = new HashSet<>();
+        cu.findAll(AnnotationExpr.class).forEach(annotation ->
+            annotationStrings.addAll(annotation.findAll(StringLiteralExpr.class))
+        );
+
+        // 1. 문자열 리터럴 검사 (어노테이션 내부 제외)
         cu.findAll(StringLiteralExpr.class).forEach(expr -> {
+            if (annotationStrings.contains(expr)) return; // 어노테이션 내부 스킵
             String value = expr.getValue();
             if (isValidUrl(value) && !shouldExclude(value)) {
                 urls.add(value);

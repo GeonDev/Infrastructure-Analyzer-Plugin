@@ -97,7 +97,9 @@ public class InfrastructureExtractor {
         Set<String> seen = new HashSet<>(); // 중복 방지
 
         YamlParser.findAllValues(config, "", (key, value) -> {
+            // 값이 String이 아니면 건너뜀 (Integer, Boolean 등)
             if (!(value instanceof String)) return;
+            
             String path = (String) value;
 
             // infrastructure.validation 섹션 자체는 건너뜀
@@ -173,7 +175,12 @@ public class InfrastructureExtractor {
             DirectoryCheck dir = new DirectoryCheck();
             dir.setPath((String) dirMap.get("path"));
             dir.setPermissions((String) dirMap.getOrDefault("permissions", "rwx"));
-            dir.setCritical((Boolean) dirMap.getOrDefault("critical", true));
+            
+            // Boolean 타입 안전 처리
+            Object criticalObj = dirMap.getOrDefault("critical", true);
+            boolean critical = criticalObj instanceof Boolean ? (Boolean) criticalObj : true;
+            dir.setCritical(critical);
+            
             dir.setDescription((String) dirMap.getOrDefault("description", ""));
             directories.add(dir);
         }
@@ -244,14 +251,24 @@ public class InfrastructureExtractor {
 
             if (PatternMatcher.shouldExclude(str, excludePatterns)) return;
 
-            if (PatternMatcher.isUrl(str) && !seen.contains(str)) {
-                seen.add(str);
-                boolean isCompanyDomain = str.contains(companyDomain);
+            String normalizedUrl = null;
+
+            if (PatternMatcher.isUrl(str)) {
+                // http(s):// 포함된 URL
+                normalizedUrl = str;
+            } else if (PatternMatcher.isDomainName(str) && str.contains(companyDomain)) {
+                // 회사 도메인명 → https:// 붙여서 URL로 변환
+                normalizedUrl = "https://" + str;
+            }
+
+            if (normalizedUrl != null && !seen.contains(normalizedUrl)) {
+                seen.add(normalizedUrl);
+                boolean isCompanyDomain = normalizedUrl.contains(companyDomain);
                 String desc = isCompanyDomain
                     ? key + " (회사 도메인)"
                     : key + " (외부 - 경고만)";
 
-                apis.add(new ApiCheck(str, "HEAD", isCompanyDomain, desc));
+                apis.add(new ApiCheck(normalizedUrl, "HEAD", isCompanyDomain, desc));
             }
         });
 

@@ -128,6 +128,8 @@ PR 체크리스트:
 
 ### 1. 프로젝트에 플러그인 추가
 
+#### 단일 모듈 프로젝트
+
 **settings.gradle (로컬 테스트 시):**
 ```gradle
 pluginManagement {
@@ -154,9 +156,51 @@ pluginManagement {
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.1'
-    id 'io.infracheck.infrastructure-analyzer' version '1.0.0'
+    id 'io.infracheck.infrastructure-analyzer' version '1.0.1'
 }
+```
+
+#### 멀티모듈 프로젝트 (서브모듈 독립 배포)
+
+각 서브모듈이 독립적으로 배포되는 구조에서는 배포 대상 서브모듈에만 플러그인을 적용합니다.
+
+**루트 settings.gradle:**
+```gradle
+pluginManagement {
+    repositories {
+        maven { url 'https://nexus.company.com/repository/maven-public/' }
+        gradlePluginPortal()
+    }
 }
+
+rootProject.name = 'my-multi-module'
+include 'api-server', 'batch-server', 'admin-server'
+```
+
+**배포 대상 서브모듈 build.gradle (예: api-server/build.gradle):**
+```gradle
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.1'
+    id 'io.infracheck.infrastructure-analyzer' version '1.0.1'
+}
+```
+
+플러그인은 각 서브모듈의 `src/main/resources/application.yaml(yml)` 및 `src/main/java`를 기준으로 분석합니다.
+
+**실행:**
+```bash
+# 특정 서브모듈만 분석
+./gradlew :api-server:analyzeInfrastructure
+
+# 플러그인이 적용된 모든 서브모듈 한번에 분석
+./gradlew analyzeInfrastructure
+```
+
+**산출물 위치:** 각 서브모듈의 `build/infrastructure/` 디렉토리에 생성됩니다.
+```
+api-server/build/infrastructure/requirements-k8s-prod.json
+batch-server/build/infrastructure/requirements-k8s-prod.json
 ```
 
 ### 2. application.yml 또는 application.properties 설정 (선택)
@@ -413,7 +457,7 @@ rm -rf ~/.gradle/caches/modules-2/files-2.1/io.infracheck/infrastructure-analyze
 
 ## 개발
 
-### 플러그인 수정 후 재테스트
+### 플러그인 수정 후 테스트
 
 ```bash
 # 1. 플러그인 재빌드 및 재배포

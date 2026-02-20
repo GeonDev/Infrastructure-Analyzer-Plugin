@@ -20,7 +20,11 @@ public class DeploymentDetector {
         "livenessstate",
         "readinessstate",
         "liveness-probe",
-        "readiness-probe"
+        "readiness-probe",
+        "configmap",
+        "config-map",
+        "service-account",
+        "serviceaccount"
     };
 
     // 쿠버네티스 관련 Gradle 플러그인
@@ -46,12 +50,17 @@ public class DeploymentDetector {
             }
         }
 
-        // 2. application.yml 분석
+        // 2. application.yaml 또는 application.yml 분석
+        File appYaml = new File(project.getProjectDir(),
+            "src/main/resources/application.yaml");
         File appYml = new File(project.getProjectDir(),
             "src/main/resources/application.yml");
-        if (appYml.exists()) {
+        
+        File configFile = appYaml.exists() ? appYaml : (appYml.exists() ? appYml : null);
+        
+        if (configFile != null) {
             try {
-                String content = Files.readString(appYml.toPath());
+                String content = Files.readString(configFile.toPath());
                 String lowerContent = content.toLowerCase();
 
                 for (String keyword : K8S_YAML_KEYWORDS) {

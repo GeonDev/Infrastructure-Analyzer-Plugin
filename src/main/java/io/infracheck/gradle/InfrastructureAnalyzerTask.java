@@ -34,15 +34,18 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
 
         // 2. 설정 파일 확인 (YAML 또는 Properties)
         File projectDir = getProject().getProjectDir();
-        File yamlFile = new File(projectDir, "src/main/resources/application.yml");
+        File yamlFile = new File(projectDir, "src/main/resources/application.yaml");
+        File ymlFile = new File(projectDir, "src/main/resources/application.yml");
         File propsFile = new File(projectDir, "src/main/resources/application.properties");
 
-        if (!yamlFile.exists() && !propsFile.exists()) {
-            getLogger().warn("⚠️  application.yml 또는 application.properties를 찾을 수 없습니다");
+        if (!yamlFile.exists() && !ymlFile.exists() && !propsFile.exists()) {
+            getLogger().warn("⚠️  application.yaml, application.yml 또는 application.properties를 찾을 수 없습니다");
             return;
         }
 
-        String configType = yamlFile.exists() ? "application.yml" : "application.properties";
+        String configType = yamlFile.exists() ? "application.yaml" 
+                          : ymlFile.exists() ? "application.yml" 
+                          : "application.properties";
         getLogger().lifecycle("📄 설정 파일: {}", configType);
 
         // 소스코드 분석 활성화 여부 확인

@@ -15,16 +15,22 @@ public class ConfigParser {
 
     /**
      * 설정 파일을 자동 감지하여 파싱합니다.
-     * 우선순위: application.yml > application.properties
+     * 우선순위: application.yaml > application.yml > application.properties
      */
     public static Map<String, Object> parseWithProfile(File projectDir, String profile) {
-        // 1. application.yml 시도
-        File yamlFile = new File(projectDir, "src/main/resources/application.yml");
+        // 1. application.yaml 시도
+        File yamlFile = new File(projectDir, "src/main/resources/application.yaml");
         if (yamlFile.exists()) {
             return YamlParser.parseWithProfile(yamlFile, profile);
         }
 
-        // 2. application.properties 시도
+        // 2. application.yml 시도
+        File yamlFile2 = new File(projectDir, "src/main/resources/application.yml");
+        if (yamlFile2.exists()) {
+            return YamlParser.parseWithProfile(yamlFile2, profile);
+        }
+
+        // 3. application.properties 시도
         File propsFile = new File(projectDir, "src/main/resources/application.properties");
         if (propsFile.exists()) {
             return parseProperties(propsFile, profile);

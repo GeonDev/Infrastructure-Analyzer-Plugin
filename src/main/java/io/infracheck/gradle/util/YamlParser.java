@@ -179,27 +179,34 @@ public class YamlParser {
 
     /**
      * Map의 모든 리프(leaf) 값을 재귀적으로 순회합니다.
+     * YAML에서 숫자 키(Integer 등)가 올 수 있으므로 Map<?, Object>로 처리합니다.
      */
     @SuppressWarnings("unchecked")
-    public static void findAllValues(Map<String, Object> map, String prefix,
+    public static void findAllValues(Map<?, Object> map, String prefix,
                                      ValueConsumer consumer) {
         if (map == null) {
             return;
         }
 
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            String key = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
+        for (Map.Entry<?, Object> entry : map.entrySet()) {
+            // YAML에서 숫자 키(Integer 등)가 올 수 있으므로 toString() 사용
+            String entryKey = entry.getKey() == null ? "" : entry.getKey().toString();
+            String key = prefix.isEmpty() ? entryKey : prefix + "." + entryKey;
             Object value = entry.getValue();
 
             if (value instanceof Map) {
-                findAllValues((Map<String, Object>) value, key, consumer);
+                findAllValues((Map<?, Object>) value, key, consumer);
             } else if (value instanceof List) {
-                // List 내부의 Map도 순회
+                // List 내부 순회
                 List<?> list = (List<?>) value;
                 for (int i = 0; i < list.size(); i++) {
                     Object item = list.get(i);
                     if (item instanceof Map) {
-                        findAllValues((Map<String, Object>) item, key + "[" + i + "]", consumer);
+                        // Map이면 재귀 순회
+                        findAllValues((Map<?, Object>) item, key + "[" + i + "]", consumer);
+                    } else if (item != null) {
+                        // 스칼라 값(String, Integer 등)도 consumer에 전달
+                        consumer.accept(key + "[" + i + "]", item);
                     }
                 }
             } else if (value != null) {
