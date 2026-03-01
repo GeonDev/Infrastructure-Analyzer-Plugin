@@ -110,17 +110,13 @@ public class InfrastructureAnalyzerMojo extends AbstractMojo {
                 requirements = generateVmRequirements(profile, config);
             }
 
-            String filename = (deploymentType == DeploymentType.KUBERNETES)
-                ? "requirements-k8s-" + profile + ".json"
-                : "requirements-" + profile + ".json";
+            // 파일명을 requirements-{profile}.json으로 통일하여 Starter와 호환성 확보
+            String filename = "requirements-" + profile + ".json";
 
             File outputFile = new File(outputDir, filename);
             writeJson(requirements, outputFile);
             getLog().info("✅ 생성됨: " + filename);
         }
-
-        // 5. 검증 스크립트 복사
-        copyValidationScript(deploymentType, outputDir);
     }
 
     private Requirements generateVmRequirements(String profile, Map<String, Object> config) {
@@ -165,26 +161,6 @@ public class InfrastructureAnalyzerMojo extends AbstractMojo {
             GSON.toJson(requirements, writer);
         } catch (IOException e) {
             throw new MojoExecutionException("❌ JSON 파일 생성 실패: " + outputFile.getPath(), e);
-        }
-    }
-
-    private void copyValidationScript(DeploymentType deploymentType, File outputDir) {
-        String scriptName = (deploymentType == DeploymentType.KUBERNETES)
-            ? "validate-k8s-infrastructure.sh"
-            : "validate-infrastructure.sh";
-
-        File targetFile = new File(outputDir, scriptName);
-
-        try (InputStream is = getClass().getResourceAsStream("/" + scriptName)) {
-            if (is == null) {
-                getLog().warn("⚠️  리소스에서 스크립트를 찾을 수 없습니다: " + scriptName);
-                return;
-            }
-            Files.copy(is, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            targetFile.setExecutable(true);
-            getLog().info("✅ 생성됨: target/infrastructure/" + scriptName);
-        } catch (IOException e) {
-            getLog().warn("⚠️  스크립트 복사 실패: " + scriptName);
         }
     }
 }

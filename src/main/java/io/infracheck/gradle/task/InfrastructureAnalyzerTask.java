@@ -1,10 +1,10 @@
-package io.infracheck.gradle;
+package io.infracheck.gradle.task;
 
 import io.infracheck.core.DeploymentType;
+import io.infracheck.core.analyzer.DeploymentDetector;
 import io.infracheck.core.analyzer.InfrastructureExtractor;
 import io.infracheck.core.model.Requirements;
 import io.infracheck.core.util.ConfigParser;
-import io.infracheck.gradle.analyzer.DeploymentDetector;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.gradle.api.DefaultTask;
@@ -29,7 +29,7 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
         checkMavenLocalUsage();
 
         // 1. 환경 감지
-        DeploymentType deploymentType = DeploymentDetector.detect(getProject());
+        DeploymentType deploymentType = DeploymentDetector.detect(getProject().getProjectDir());
         getLogger().lifecycle("✅ 감지된 배포 환경: {}", deploymentType);
 
         // 2. 설정 파일 확인
@@ -72,17 +72,13 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
                 requirements = generateVmRequirements(profile, config, projectDir);
             }
 
-            String filename = (deploymentType == DeploymentType.KUBERNETES)
-                ? "requirements-k8s-" + profile + ".json"
-                : "requirements-" + profile + ".json";
+            // 파일명을 requirements-{profile}.json으로 통일하여 Starter와 호환성 확보
+            String filename = "requirements-" + profile + ".json";
 
             File outputFile = new File(outputDir, filename);
             writeJson(requirements, outputFile);
             getLogger().lifecycle("✅ 생성됨: {}", filename);
         }
-
-        // 4. 검증 스크립트 복사
-        copyValidationScript(deploymentType);
     }
 
     private Requirements generateVmRequirements(String profile, Map<String, Object> config, File projectDir) {
@@ -127,28 +123,6 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
             GSON.toJson(requirements, writer);
         } catch (IOException e) {
             getLogger().error("❌ JSON 파일 생성 실패: {}", outputFile.getPath(), e);
-        }
-    }
-
-    private void copyValidationScript(DeploymentType deploymentType) {
-        File targetDir = getProject().getLayout().getBuildDirectory().dir("infrastructure").get().getAsFile();
-
-        String scriptName = (deploymentType == DeploymentType.KUBERNETES)
-            ? "validate-k8s-infrastructure.sh"
-            : "validate-infrastructure.sh";
-
-        File targetFile = new File(targetDir, scriptName);
-
-        try (InputStream is = getClass().getResourceAsStream("/" + scriptName)) {
-            if (is == null) {
-                getLogger().warn("⚠️  리소스에서 스크립트를 찾을 수 없습니다: {}", scriptName);
-                return;
-            }
-            Files.copy(is, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            targetFile.setExecutable(true);
-            getLogger().lifecycle("✅ 생성됨: build/infrastructure/{}", scriptName);
-        } catch (IOException e) {
-            getLogger().error("❌ 스크립트 복사 실패: {}", scriptName, e);
         }
     }
 

@@ -1,384 +1,91 @@
-# 로컬 테스트 가이드
+# 로컬 테스트 가이드 (통합 버전)
 
-플러그인을 Nexus에 배포하기 전에 로컬에서 테스트하는 방법입니다.
+이 가이드는 통합된 **Infrastructure Analyzer Plugin**을 로컬 환경에서 테스트하는 방법을 안내합니다.
 
-## 1단계: core 모듈을 Maven Local에 배포
+## 1단계: 모듈 설치 (Maven Local)
 
-core 모듈은 Gradle 플러그인과 Maven 플러그인이 공유하는 공통 분석 로직입니다.
-**반드시 core 모듈을 먼저 설치해야 합니다.**
-
-```bash
-cd infrastructure-analyzer-core
-mvn clean install
-```
-
-이 명령은 core 모듈을 `~/.m2/repository/`에 설치합니다.
-
-**확인:**
-```bash
-ls -la ~/.m2/repository/io/infracheck/infrastructure-analyzer-core/1.0.1/
-```
-
----
-
-## 2단계: Gradle 플러그인을 Maven Local에 배포
+루트 프로젝트에서 단 한 번의 명령으로 모든 기능이 포함된 JAR를 로컬 저장소(`~/.m2/repository/`)에 설치합니다.
 
 ```bash
 # 프로젝트 루트에서 실행
 ./gradlew clean publishToMavenLocal
 ```
 
-이 명령은 Gradle 플러그인을 `~/.m2/repository/`에 설치합니다.
-
-**확인:**
+**설치 확인:**
 ```bash
-ls -la ~/.m2/repository/io/infracheck/infrastructure-analyzer-plugin/1.0.1/
+ls -la ~/.m2/repository/io/infracheck/infrastructure-analyzer-plugin/1.0.2/
 ```
-
-다음 파일들이 있어야 합니다:
-- `infrastructure-analyzer-plugin-1.0.1.jar`
-- `infrastructure-analyzer-plugin-1.0.1.pom`
-- `infrastructure-analyzer-plugin-1.0.1.module`
 
 ---
 
-## 3단계: 테스트 프로젝트 설정
+## 2단계: 테스트 프로젝트 설정
 
-#### settings.gradle 수정
+테스트할 Spring Boot 프로젝트의 `settings.gradle`과 `build.gradle`을 다음과 같이 설정합니다.
 
+#### settings.gradle (테스트 프로젝트)
 ```gradle
 pluginManagement {
     repositories {
-        mavenLocal()  // 로컬 Maven 저장소 추가
+        mavenLocal()  // 로컬 저장소 우선 탐색
         gradlePluginPortal()
         mavenCentral()
     }
 }
-
 ```
 
-#### build.gradle 수정
-
+#### build.gradle (테스트 프로젝트)
 ```gradle
 plugins {
-    id 'java'
-    id 'org.springframework.boot' version '3.4.1'
-    id 'io.spring.dependency-management' version '1.1.7'
-    id 'io.infracheck.infrastructure-analyzer' version '1.0.1'  // ← 추가
+    // 플러그인만 추가하면 분석(Build-time)과 검증(Runtime) 기능이 모두 활성화됩니다.
+    id 'io.infracheck.infrastructure-analyzer' version '1.0.2'
 }
 
-// ... 나머지 설정
-```
-
-#### application.yml에 테스트 설정 추가 (선택)
-
-```yaml
-# src/main/resources/application.yml
-infrastructure:
-  validation:
-    company-domain: "abc.co.kr"  # 회사 도메인 설정
-    
-    # 명시적 파일 선언 (선택)
-    files:
-      - path: "/nas2/was/key/test.pem"
-        critical: true
-        description: "테스트 인증서"
-    
-    # 명시적 API 선언 (선택)
-    apis:
-      - url: "https://api.abc.co.kr"
-        critical: true
-        description: "메인 API"
-      - url: "https://www.google.com"
-        critical: false
-        description: "외부 API (경고만)"
-    
-    # 명시적 디렉토리 권한 선언 (선택, VM 전용)
-    directories:
-      - path: "/var/log/myapp"
-        permissions: "rwx"
-        critical: true
-        description: "애플리케이션 로그 디렉토리"
-      - path: "/data/uploads"
-        permissions: "rw"
-        critical: true
-        description: "파일 업로드 디렉토리"
-    
-    # 제외 패턴 (선택)
-    exclude-patterns:
-      - "localhost"
-      - "127.0.0.1"
-      - "*.local"
+// dependencies { implementation '...' } 섹션에 스타터를 직접 추가할 필요가 없습니다.
 ```
 
 ---
 
-## 4단계: 빌드 실행
+## 3단계: 인프라 명세 생성 및 검증 테스트
+
+### 1. 명세 생성 (Build-time)
+빌드를 수행하여 `requirements-{profile}.json` 파일들이 생성되는지 확인합니다.
 
 ```bash
-cd ..  # 루트 프로젝트로 이동
-./gradlew clean build
+./gradlew analyzeInfrastructure
 ```
 
-**예상 출력 (로컬 환경):**
-```
-> Task :analyzeInfrastructure
-⚠️  INFO: settings.gradle에 mavenLocal()이 설정되어 있습니다.
-⚠️  로컬 테스트 중이라면 정상입니다.
-⚠️  운영 배포 전에는 반드시 제거하세요.
-✅ 감지된 배포 환경: VM
-📄 설정 파일: application.yml
-🔍 소스코드 분석 활성화
-✅ 생성됨: requirements-dev.json
-✅ 생성됨: requirements-stg.json
-✅ 생성됨: requirements-prod.json
-✅ 생성됨: build/infrastructure/validate-infrastructure.sh
-
-BUILD SUCCESSFUL
-```
-
-**참고:** `mavenLocal()` 경고는 로컬 개발 중에는 정상입니다. CI/CD 환경(Bamboo 등)에서는 더 강력한 ERROR 경고가 표시됩니다.
-
----
-
-## 5단계: 생성된 파일 확인
-
-### requirements.json 파일 확인
+### 2. 자동 검증 (Runtime)
+애플리케이션을 실행하여 실제 인프라 검증 로그를 확인합니다.
 
 ```bash
-# 빌드 디렉토리에 생성됨
-cat build/infrastructure/requirements-dev.json
-cat build/infrastructure/requirements-stg.json
-cat build/infrastructure/requirements-prod.json
+# prod 프로파일로 실행하여 엄격 모드(Strict Mode) 테스트
+./gradlew bootRun --args='--spring.profiles.active=prod'
 ```
 
-**예시 출력 (requirements-prod.json):**
-```json
-{
-  "version": "1.0",
-  "project": "qa-agent-server",
-  "environment": "prod",
-  "platform": "vm",
-  "infrastructure": {
-    "company_domain": "abc.co.kr",
-    "files": [
-      {
-        "path": "/nas2/was/key/test.pem",
-        "location": "nas",
-        "critical": true,
-        "description": "테스트 인증서"
-      }
-    ],
-    "external_apis": [
-      {
-        "url": "https://api.abc.co.kr",
-        "method": "HEAD",
-        "expectedStatus": [200, 301, 302, 401, 403, 404],
-        "critical": true,
-        "description": "메인 API"
-      },
-      {
-        "url": "https://www.google.com",
-        "method": "HEAD",
-        "expectedStatus": [200, 301, 302, 401, 403, 404],
-        "critical": false,
-        "description": "외부 API (경고만)"
-      }
-    ],
-    "directories": [
-      {
-        "path": "/var/log/myapp",
-        "permissions": "rwx",
-        "critical": true,
-        "description": "애플리케이션 로그 디렉토리"
-      },
-      {
-        "path": "/data/uploads",
-        "permissions": "rw",
-        "critical": true,
-        "description": "파일 업로드 디렉토리"
-      }
-    ]
-  }
-}
+**예상 로그:**
 ```
-
-### 검증 스크립트 확인
-
-```bash
-ls -la build/infrastructure/
-cat build/infrastructure/validate-infrastructure.sh
-```
-
-**참고:** VM 환경에서는 `validate-infrastructure.sh`가 생성되며, 파일/API/디렉토리 권한을 검증합니다. K8s 환경에서는 `validate-k8s-infrastructure.sh`가 생성됩니다.
-
----
-
-## 5단계: 검증 스크립트 테스트 (선택)
-
-검증 스크립트를 로컬에서 실행해볼 수 있습니다:
-
-```bash
-# 스크립트 실행 (SSH 접속 정보 필요)
-export PROD_SERVER_HOST="your-server.com"
-export PROD_SERVER_USER="deploy"
-
-bash build/infrastructure/validate-infrastructure.sh prod
-```
-
-**예상 출력:**
-```
-📁 인프라 검증 시작 (환경: prod)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📄 파일 존재 검증...
-  ✅ /nas2/was/key/test.pem - 테스트 인증서
-
-🌐 외부 API 접근 검증...
-  ✅ https://api.abc.co.kr (HTTP 200) - 메인 API
-  ✅ https://www.google.com (HTTP 200) - 외부 API (경고만)
-
-📁 디렉토리 권한 검증...
-  ✅ /var/log/myapp (rwx) - 애플리케이션 로그 디렉토리
-  ❌ /data/uploads - 쓰기권한 없음 [CRITICAL]
-
-============================================================
-  검증 결과 요약
-============================================================
-  총 검증 항목: 5
-  성공: 4
-  실패 (CRITICAL): 1
-  경고 (WARNING): 0
-============================================================
-```
-
-**주의:** SSH 접속이 설정되어 있지 않으면 경고만 표시되고 종료됩니다.
-
----
-
-## 6단계: 플러그인 수정 후 재테스트
-
-플러그인 코드를 수정한 경우:
-
-```bash
-# 1. 플러그인 재빌드 및 재배포
-cd infrastructure-analyzer-plugin
-../gradlew clean publishToMavenLocal
-
-# 2. 테스트 프로젝트 재빌드
-cd ..
-./gradlew clean build
+INFO: Starting infrastructure verification (profile: prod, path: requirements-prod.json)
+DEBUG: Verifying API: https://api.company.co.kr
+INFO: Infrastructure verification completed successfully. Passed: 5/5 (120ms)
 ```
 
 ---
 
 ## 트러블슈팅
 
-### 문제 1: 플러그인을 찾을 수 없음
-
-**에러:**
-```
-Plugin [id: 'io.infracheck.infrastructure-analyzer', version: '1.0.0'] was not found
-```
-
-**해결:**
-1. `publishToMavenLocal`이 성공했는지 확인
-2. `~/.m2/repository/io/infracheck/infrastructure-analyzer-plugin/1.0.0/` 디렉토리 존재 확인
-3. `settings.gradle`에 `mavenLocal()` 추가 확인
-
-### 문제 2: 이전 버전이 캐시됨
-
-**해결:**
+### 캐시 문제
+수정 사항이 반영되지 않을 경우 로컬 캐시를 삭제하고 재빌드하세요.
 ```bash
-# Gradle 캐시 삭제
-rm -rf ~/.gradle/caches/modules-2/files-2.1/io.infracheck/infrastructure-analyzer-plugin
-
-# 재빌드
+rm -rf ~/.gradle/caches/modules-2/files-2.1/io.infracheck/
 ./gradlew clean build --refresh-dependencies
 ```
 
-### 문제 3: application.yml을 찾을 수 없음
-
-**에러:**
-```
-⚠️  application.yml을 찾을 수 없습니다
-```
-
-**해결:**
-- `src/main/resources/application.yml` 파일이 존재하는지 확인
-- Spring Boot 프로젝트가 아닌 경우 플러그인이 동작하지 않을 수 있음
-
 ---
 
-## 다른 프로젝트에서 테스트
-
-### 단일 모듈 프로젝트
-
-1. 해당 프로젝트의 `settings.gradle`에 `mavenLocal()` 추가
-2. `build.gradle`에 플러그인 추가
-3. `./gradlew analyzeInfrastructure` 실행
-
-### 멀티모듈 프로젝트 (서브모듈 독립 배포)
-
-각 서브모듈이 독립적으로 배포되는 구조에서는 배포 대상 서브모듈에만 플러그인을 적용합니다.
-
-**루트 settings.gradle:**
-```gradle
-pluginManagement {
-    repositories {
-        mavenLocal()  // 로컬 테스트용
-        gradlePluginPortal()
-        mavenCentral()
-    }
-}
-
-rootProject.name = 'my-multi-module'
-include 'api-server', 'batch-server', 'admin-server'
-```
-
-**배포 대상 서브모듈 build.gradle (예: api-server/build.gradle):**
-```gradle
-plugins {
-    id 'java'
-    id 'org.springframework.boot' version '3.4.1'
-    id 'io.infracheck.infrastructure-analyzer' version '1.0.1'
-}
-```
-
-**실행:**
+## 원격 배포 (Nexus)
+테스트가 완료되면 Nexus 저장소에 배포합니다.
 ```bash
-# 특정 서브모듈만 분석
-./gradlew :api-server:analyzeInfrastructure
-
-# 플러그인이 적용된 모든 서브모듈 한번에 분석
-./gradlew analyzeInfrastructure
-```
-
-각 서브모듈의 `src/main/resources/application.yaml(yml)` 및 `src/main/java`를 기준으로 독립적으로 분석하며, 산출물은 각 서브모듈의 `build/infrastructure/`에 생성됩니다.
-
----
-
-## 정리
-
-로컬 테스트가 완료되면:
-
-```bash
-# 생성된 파일 정리 (선택)
-rm -rf build/infrastructure/
-
-# Git에서 제외 (.gitignore에 추가)
-echo "build/infrastructure/" >> .gitignore
-```
-
----
-
-## 다음 단계
-
-로컬 테스트가 성공하면 Nexus에 배포:
-
-```bash
-cd infrastructure-analyzer-plugin
-export NEXUS_USERNAME="your-username"
-export NEXUS_PASSWORD="your-password"
-../gradlew publish
+export NEXUS_USERNAME="user"
+export NEXUS_PASSWORD="password"
+./gradlew publish
 ```

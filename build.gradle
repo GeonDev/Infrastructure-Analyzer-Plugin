@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'io.infracheck'
-version = '1.0.1'
+version = '1.0.2'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -12,39 +12,48 @@ java {
 }
 
 repositories {
-    mavenLocal()  // core 모듈 로컬 참조용
+    mavenLocal()
     mavenCentral()
 }
 
 dependencies {
-    // Gradle API (java-gradle-plugin이 자동 추가하지만 IDE 인식을 위해 명시)
+    // Gradle API
     compileOnly gradleApi()
 
-    // core 모듈 (공통 분석 로직)
-    implementation 'io.infracheck:infrastructure-analyzer-core:1.0.1'
-
-    // JSON 직렬화 (Task에서 직접 사용)
+    // 1. Core 모듈의 의존성들 (통합됨)
     implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.yaml:snakeyaml:2.2'
+    implementation 'com.github.javaparser:javaparser-core:3.25.8'
+    implementation 'org.slf4j:slf4j-api:2.0.7'
+
+    // 2. Spring Boot Starter 의존성들 (통합됨)
+    // 애플리케이션 JAR에 Gradle/Maven API가 들어가지 않도록 compileOnly 권장
+    compileOnly 'org.springframework.boot:spring-boot-starter:3.1.0'
+    compileOnly 'org.springframework.boot:spring-boot-configuration-processor:3.1.0'
+
+    // 3. Maven Plugin 의존성들 (통합됨)
+    compileOnly 'org.apache.maven:maven-plugin-api:3.9.0'
+    compileOnly 'org.apache.maven.plugin-tools:maven-plugin-annotations:3.9.0'
+    compileOnly 'org.apache.maven:maven-project:2.2.1'
+
+    // Testing
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'com.pholser:junit-quickcheck-core:1.0'
+    testImplementation 'com.pholser:junit-quickcheck-generators:1.0'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test:3.1.0'
 }
 
 gradlePlugin {
     plugins {
         infrastructureAnalyzer {
             id = 'io.infracheck.infrastructure-analyzer'
-            implementationClass = 'io.infracheck.gradle.InfrastructureAnalyzerPlugin'
+            implementationClass = 'io.infracheck.gradle.plugin.InfrastructureAnalyzerPlugin'
         }
     }
 }
 
 publishing {
     repositories {
-        mavenLocal()  // 로컬 테스트용
-        maven {
-            url = uri(findProperty('nexusUrl') ?: "https://nexus.company.com/repository/maven-releases/")
-            credentials {
-                username = findProperty('nexusUsername') ?: System.getenv("NEXUS_USERNAME")
-                password = findProperty('nexusPassword') ?: System.getenv("NEXUS_PASSWORD")
-            }
-        }
+        mavenLocal()
     }
 }
