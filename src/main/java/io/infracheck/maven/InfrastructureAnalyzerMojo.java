@@ -2,8 +2,6 @@ package io.infracheck.maven;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import io.infracheck.core.DeploymentType;
-import io.infracheck.core.analyzer.DeploymentDetector;
 import io.infracheck.core.analyzer.InfrastructureExtractor;
 import io.infracheck.core.model.Requirements;
 import io.infracheck.core.util.ConfigParser;
@@ -14,18 +12,16 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.Map;
 
 /**
  * Maven 프로젝트용 인프라 검증 항목 분석 Mojo
- * mvn io.infracheck:infrastructure-analyzer-maven-plugin:analyze
+ * mvn io.infracheck:infrastructure-analyzer:analyze
  */
 @Mojo(name = "analyze", defaultPhase = LifecyclePhase.PACKAGE)
 public class InfrastructureAnalyzerMojo extends AbstractMojo {
 
-    private static final String[] DEFAULT_PROFILES = {"dev", "stage", "prod"};
+    private static final String[] DEFAULT_PROFILES = {"local", "dev", "stage", "prod"};
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     /** 프로젝트 루트 디렉토리 */
@@ -36,9 +32,9 @@ public class InfrastructureAnalyzerMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.artifactId}", readonly = true)
     private String projectName;
 
-    /** 빌드 출력 디렉토리 */
-    @Parameter(defaultValue = "${project.build.directory}", readonly = true)
-    private File buildDir;
+    /** 출력 디렉토리 */
+    @Parameter(defaultValue = "${project.build.outputDirectory}/infrastructure", readonly = true)
+    private File outputDir;
 
     /**
      * application.yml이 위치한 디렉토리 (기본값: projectDir/src/main/resources)
@@ -49,8 +45,8 @@ public class InfrastructureAnalyzerMojo extends AbstractMojo {
     private File configDir;
 
     /**
-     * 분석할 프로파일 목록 (기본값: dev, stage, prod)
-     * 예: <profiles><profile>dev</profile><profile>stage</profile><profile>prod</profile></profiles>
+     * 분석할 프로파일 목록 (기본값: local, dev, stage, prod)
+     * 예: <profiles><profile>local</profile><profile>dev</profile><profile>stage</profile><profile>prod</profile></profiles>
      */
     @Parameter
     private String[] profiles;
@@ -63,9 +59,7 @@ public class InfrastructureAnalyzerMojo extends AbstractMojo {
         // 설정 파일 디렉토리 결정 (configDir 우선, 없으면 projectDir 기준)
         File effectiveConfigDir = (configDir != null) ? configDir : projectDir;
 
-        // 1. 환경 감지
-        DeploymentType deploymentType = DeploymentDetector.detect(projectDir);
-        getLog().info("✅ 감지된 배포 환경: " + deploymentType);
+        // 1. (삭제됨) 환경 감지 불필요
 
         // 2. 설정 파일 확인
         File yamlFile = new File(effectiveConfigDir, "src/main/resources/application.yaml");
@@ -91,7 +85,6 @@ public class InfrastructureAnalyzerMojo extends AbstractMojo {
         getLog().info("📄 설정 파일: " + configType);
 
         // 3. 출력 디렉토리 생성
-        File outputDir = new File(buildDir, "infrastructure");
         outputDir.mkdirs();
 
         // 4. 프로파일별 requirements.json 생성
@@ -103,12 +96,7 @@ public class InfrastructureAnalyzerMojo extends AbstractMojo {
                 config = ConfigParser.parseWithProfile(effectiveConfigDir, null);
             }
 
-            Requirements requirements;
-            if (deploymentType == DeploymentType.KUBERNETES) {
-                requirements = generateK8sRequirements(profile, config);
-            } else {
-                requirements = generateVmRequirements(profile, config);
-            }
+            Requirements requirements = generateRequirements(profile, config);
 
             // 파일명을 requirements-{profile}.json으로 통일하여 Starter와 호환성 확보
             String filename = "requirements-" + profile + ".json";
@@ -119,39 +107,18 @@ public class InfrastructureAnalyzerMojo extends AbstractMojo {
         }
     }
 
-    private Requirements generateVmRequirements(String profile, Map<String, Object> config) {
+    private Requirements generateRequirements(String profile, Map<String, Object> config) {
         InfrastructureExtractor extractor = new InfrastructureExtractor(config, projectDir);
 
         Requirements req = new Requirements();
         req.setProject(projectName);
         req.setEnvironment(profile);
-        req.setPlatform("vm");
 
         Requirements.Infrastructure infra = req.getInfrastructure();
         infra.setCompany_domain(extractor.getCompanyDomain());
         infra.setFiles(extractor.extractFiles());
         infra.setExternal_apis(extractor.extractApis());
         infra.setDirectories(extractor.extractDirectories());
-
-        return req;
-    }
-
-    private Requirements generateK8sRequirements(String profile, Map<String, Object> config) {
-        InfrastructureExtractor extractor = new InfrastructureExtractor(config, projectDir);
-
-        Requirements req = new Requirements();
-        req.setProject(projectName);
-        req.setEnvironment(profile);
-        req.setPlatform("kubernetes");
-
-        Requirements.Infrastructure infra = req.getInfrastructure();
-        infra.setCompany_domain(extractor.getCompanyDomain());
-        infra.setNamespace(InfrastructureExtractor.determineNamespace(profile));
-        infra.setFiles(extractor.extractFiles());
-        infra.setExternal_apis(extractor.extractApis());
-        infra.setConfigmaps(extractor.extractConfigMaps());
-        infra.setSecrets(extractor.extractSecrets());
-        infra.setPvcs(extractor.extractPvcs());
 
         return req;
     }

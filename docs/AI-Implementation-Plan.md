@@ -55,7 +55,7 @@ VM/물리 서버와 쿠버네티스 환경을 모두 지원하는 배포 전 인
 
 
 ```
-infrastructure-analyzer-plugin/
+infrastructure-analyzer/
 ├── build.gradle
 ├── settings.gradle
 └── src/main/
@@ -216,7 +216,7 @@ public class InfrastructureAnalyzerTask {
 # application.yml
 infrastructure:
   validation:
-    company-domain: "abc.co.kr"  # 회사 도메인 설정
+    domain: "abc.co.kr"  # 회사 도메인 설정
     
     # 명시적으로 검증할 파일 선언 (선택)
     files:
@@ -353,7 +353,7 @@ private List<ApiCheck> extractExternalApis(Map<String, Object> config,
     
     // 회사 도메인 설정
     String companyDomain = getNestedValue(config, 
-        "infrastructure.validation.company-domain");
+        "infrastructure.validation.domain");
     if (companyDomain == null) {
         companyDomain = "company.com";  // 기본값
     }
@@ -829,7 +829,7 @@ fi
 ### 3.1 플러그인 배포
 
 ```bash
-cd infrastructure-analyzer-plugin
+cd infrastructure-analyzer
 export NEXUS_USERNAME="your-username"
 export NEXUS_PASSWORD="your-password"
 ./gradlew publish
@@ -862,7 +862,7 @@ plugins {
 ```yaml
 infrastructure:
   validation:
-    company-domain: "abc.co.kr"  # 회사 도메인 설정
+    domain: "abc.co.kr"  # 회사 도메인 설정
 ```
 
 ### 3.3 빌드 및 커밋
@@ -1116,7 +1116,7 @@ Deployment Plan (prod)
 
 1. **JNDI 데이터소스**: WAS 설정이므로 검증하지 않음
 2. **CORS 설정**: 애플리케이션 레벨이므로 인프라 검증에서 제외
-3. **회사 도메인 설정**: application.yml에 `infrastructure.validation.company-domain` 설정
+3. **회사 도메인 설정**: application.yml에 `infrastructure.validation.domain` 설정
 4. **헬스체크 엔드포인트**: 없는 경우 HEAD 요청으로 접근 가능 여부만 확인
 5. **환경 감지**: 쿠버네티스 관련 키워드가 있으면 K8s로 감지
 6. **검증 스크립트**: Git에 커밋해야 Bamboo에서 사용 가능

@@ -10,13 +10,14 @@
 
 - **통합 관리**: Core 로직, Gradle/Maven 플러그인, Spring Boot Starter가 하나의 JAR로 제공됩니다.
 - **자동 의존성 주입**: Gradle 플러그인 적용 시, 런타임 검증을 위한 Starter 라이브러리가 프로젝트에 자동으로 포함됩니다.
-- **파일명 표준화**: 어떤 빌드 환경에서도 `requirements-{profile}.json` 명세를 생성하여 일관된 검증을 제공합니다.
+- **파일명 표준화**: 어떤 환경(local, dev, stage, prod)에서도 `requirements-{profile}.json` 명세를 생성하여 일관된 검증을 제공합니다.
+- **실행 환경 독립성**: 애플리케이션 자체가 VM에서 실행되든 Kubernetes에서 실행되든 상관없이, 외부 연결(API/DB), 파일 시스템 등 자신이 필요로 하는 런타임 인프라 요소만 독립적으로 검증합니다.
 - **제로 코드 검증**: 소스 코드 수정 없이 설정만으로 애플리케이션 시작 시 자동 인프라 체크를 수행합니다.
 
 ## 프로젝트 구조
 
 ```
-infrastructure-analyzer-plugin/
+infrastructure-analyzer/
 ├── src/main/java/io/infracheck/
 │   ├── core/        # 공통 분석 로직 및 모델 (Shared Logic)
 │   ├── gradle/      # Gradle 분석 플러그인 및 태스크
@@ -48,7 +49,7 @@ infrastructure-analyzer-plugin/
 ```gradle
 plugins {
     // 플러그인 적용만으로 분석 + 런타임 검증 기능이 모두 활성화됩니다.
-    id 'io.infracheck.infrastructure-analyzer' version '1.0.2'
+    id 'io.infracheck.infrastructure-analyzer' version '1.0.0-SNAPSHOT'
 }
 ```
 
@@ -63,8 +64,8 @@ plugins {
 ```xml
 <plugin>
     <groupId>io.infracheck</groupId>
-    <artifactId>infrastructure-analyzer-plugin</artifactId>
-    <version>1.0.2</version>
+    <artifactId>infrastructure-analyzer</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
     <executions>
         <goal>analyze</goal>
     </executions>
@@ -73,8 +74,8 @@ plugins {
 <!-- 런타임 검증을 위해 의존성 추가 -->
 <dependency>
     <groupId>io.infracheck</groupId>
-    <artifactId>infrastructure-analyzer-plugin</artifactId>
-    <version>1.0.2</version>
+    <artifactId>infrastructure-analyzer</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -85,10 +86,10 @@ plugins {
 ```yaml
 infrastructure:
   validation:
-    company-domain: "company.co.kr"  # 필수 설정
+    domain: "company.co.kr"  # 필수 설정
     verification:
       enabled: true                 # 검증 활성화 여부
-      fail-on-error: true           # 실패 시 기동 중단 (prod는 기본 true)
+      fail-on-error: true           # 실패 시 기동 중단 (prod, stage는 기본 true)
       timeout-seconds: 5            # API 응답 대기 시간
 ```
 

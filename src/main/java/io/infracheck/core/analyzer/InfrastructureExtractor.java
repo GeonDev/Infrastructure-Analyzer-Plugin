@@ -22,7 +22,7 @@ public class InfrastructureExtractor {
     public InfrastructureExtractor(Map<String, Object> config, File projectDir) {
         this.config = config;
 
-        String domain = YamlParser.getNestedValue(config, "infrastructure.validation.company-domain");
+        String domain = YamlParser.getNestedValue(config, "infrastructure.validation.domain");
         this.companyDomain = (domain != null) ? domain : "company.com";
 
         List<String> patterns = YamlParser.getNestedValue(config, "infrastructure.validation.exclude-patterns");
@@ -44,8 +44,7 @@ public class InfrastructureExtractor {
     public List<FileCheck> extractFiles() {
         List<FileCheck> allFiles = new ArrayList<>();
 
-        List<Map<String, Object>> explicitFiles =
-            YamlParser.getNestedValue(config, "infrastructure.validation.files");
+        List<Map<String, Object>> explicitFiles = YamlParser.getNestedValue(config, "infrastructure.validation.files");
 
         if (explicitFiles != null && !explicitFiles.isEmpty()) {
             allFiles.addAll(parseExplicitFiles(explicitFiles));
@@ -64,7 +63,8 @@ public class InfrastructureExtractor {
         List<FileCheck> files = new ArrayList<>();
         for (Map<String, Object> item : explicitFiles) {
             String path = YamlParser.resolveValue((String) item.get("path"), config);
-            if (path == null || path.contains("${")) continue;
+            if (path == null || path.contains("${"))
+                continue;
             Object criticalObj = item.getOrDefault("critical", true);
             boolean critical = criticalObj instanceof Boolean ? (Boolean) criticalObj : true;
             String description = (String) item.getOrDefault("description", path);
@@ -78,10 +78,13 @@ public class InfrastructureExtractor {
         Set<String> seen = new HashSet<>();
 
         YamlParser.findAllValues(config, "", (key, value) -> {
-            if (!(value instanceof String)) return;
+            if (!(value instanceof String))
+                return;
             String path = (String) value;
-            if (key.startsWith("infrastructure.validation")) return;
-            if (PatternMatcher.shouldExclude(path, excludePatterns)) return;
+            if (key.startsWith("infrastructure.validation"))
+                return;
+            if (PatternMatcher.shouldExclude(path, excludePatterns))
+                return;
 
             if (PatternMatcher.isFilePath(path) && !seen.contains(path)) {
                 seen.add(path);
@@ -103,7 +106,8 @@ public class InfrastructureExtractor {
     private List<FileCheck> deduplicateFiles(List<FileCheck> files) {
         Map<String, FileCheck> unique = new LinkedHashMap<>();
         for (FileCheck file : files) {
-            if (!unique.containsKey(file.getPath())) unique.put(file.getPath(), file);
+            if (!unique.containsKey(file.getPath()))
+                unique.put(file.getPath(), file);
         }
         return new ArrayList<>(unique.values());
     }
@@ -111,10 +115,11 @@ public class InfrastructureExtractor {
     // ========== 디렉토리 권한 추출 (VM 전용) ==========
 
     public List<DirectoryCheck> extractDirectories() {
-        List<Map<String, Object>> explicitDirs =
-            YamlParser.getNestedValue(config, "infrastructure.validation.directories");
+        List<Map<String, Object>> explicitDirs = YamlParser.getNestedValue(config,
+                "infrastructure.validation.directories");
 
-        if (explicitDirs == null || explicitDirs.isEmpty()) return Collections.emptyList();
+        if (explicitDirs == null || explicitDirs.isEmpty())
+            return Collections.emptyList();
 
         List<DirectoryCheck> directories = new ArrayList<>();
         for (Map<String, Object> dirMap : explicitDirs) {
@@ -135,8 +140,7 @@ public class InfrastructureExtractor {
     public List<ApiCheck> extractApis() {
         List<ApiCheck> allApis = new ArrayList<>();
 
-        List<Map<String, Object>> explicitApis =
-            YamlParser.getNestedValue(config, "infrastructure.validation.apis");
+        List<Map<String, Object>> explicitApis = YamlParser.getNestedValue(config, "infrastructure.validation.apis");
 
         if (explicitApis != null && !explicitApis.isEmpty()) {
             allApis.addAll(parseExplicitApis(explicitApis));
@@ -155,7 +159,8 @@ public class InfrastructureExtractor {
         List<ApiCheck> apis = new ArrayList<>();
         for (Map<String, Object> item : explicitApis) {
             String url = YamlParser.resolveValue((String) item.get("url"), config);
-            if (url == null || url.contains("${")) continue;
+            if (url == null || url.contains("${"))
+                continue;
             Object criticalObj = item.getOrDefault("critical", true);
             boolean critical = criticalObj instanceof Boolean ? (Boolean) criticalObj : true;
             String description = (String) item.getOrDefault("description", url);
@@ -170,10 +175,13 @@ public class InfrastructureExtractor {
         Set<String> seen = new HashSet<>();
 
         YamlParser.findAllValues(config, "", (key, value) -> {
-            if (!(value instanceof String)) return;
+            if (!(value instanceof String))
+                return;
             String str = (String) value;
-            if (key.startsWith("infrastructure.validation")) return;
-            if (PatternMatcher.shouldExclude(str, excludePatterns)) return;
+            if (key.startsWith("infrastructure.validation"))
+                return;
+            if (PatternMatcher.shouldExclude(str, excludePatterns))
+                return;
 
             String normalizedUrl = null;
 
@@ -207,103 +215,10 @@ public class InfrastructureExtractor {
     private List<ApiCheck> deduplicateApis(List<ApiCheck> apis) {
         Map<String, ApiCheck> unique = new LinkedHashMap<>();
         for (ApiCheck api : apis) {
-            if (!unique.containsKey(api.getUrl())) unique.put(api.getUrl(), api);
+            if (!unique.containsKey(api.getUrl()))
+                unique.put(api.getUrl(), api);
         }
         return new ArrayList<>(unique.values());
     }
 
-    // ========== 쿠버네티스 리소스 추출 ==========
-
-    public List<ConfigMapCheck> extractConfigMaps() {
-        List<Map<String, Object>> explicit =
-            YamlParser.getNestedValue(config, "infrastructure.validation.configmaps");
-
-        if (explicit != null && !explicit.isEmpty()) {
-            List<ConfigMapCheck> result = new ArrayList<>();
-            for (Map<String, Object> item : explicit) {
-                String name = (String) item.get("name");
-                Object criticalObj = item.getOrDefault("critical", true);
-                boolean critical = criticalObj instanceof Boolean ? (Boolean) criticalObj : true;
-                result.add(new ConfigMapCheck(name, critical, (String) item.getOrDefault("description", name)));
-            }
-            return result;
-        }
-
-        return List.of(new ConfigMapCheck("app-config", true, "애플리케이션 기본 설정"));
-    }
-
-    public List<SecretCheck> extractSecrets() {
-        List<Map<String, Object>> explicit =
-            YamlParser.getNestedValue(config, "infrastructure.validation.secrets");
-
-        if (explicit != null && !explicit.isEmpty()) {
-            List<SecretCheck> result = new ArrayList<>();
-            for (Map<String, Object> item : explicit) {
-                String name = (String) item.get("name");
-                Object criticalObj = item.getOrDefault("critical", true);
-                boolean critical = criticalObj instanceof Boolean ? (Boolean) criticalObj : true;
-                result.add(new SecretCheck(name, critical, (String) item.getOrDefault("description", name)));
-            }
-            return result;
-        }
-
-        List<SecretCheck> secrets = new ArrayList<>();
-        if (YamlParser.getNestedValue(config, "spring.cloud.vault.uri") != null) {
-            secrets.add(new SecretCheck("vault-token", true, "Vault 인증 토큰"));
-        }
-        if (YamlParser.getNestedValue(config, "spring.redis.host") != null
-            || YamlParser.getNestedValue(config, "redis.host") != null) {
-            secrets.add(new SecretCheck("redis-credentials", true, "Redis 인증 정보"));
-        }
-        if (!extractFiles().isEmpty()) {
-            secrets.add(new SecretCheck("file-keys", true, "파일 기반 인증 키"));
-        }
-        return secrets;
-    }
-
-    public List<PvcCheck> extractPvcs() {
-        List<Map<String, Object>> explicit =
-            YamlParser.getNestedValue(config, "infrastructure.validation.pvcs");
-
-        if (explicit != null && !explicit.isEmpty()) {
-            List<PvcCheck> result = new ArrayList<>();
-            for (Map<String, Object> item : explicit) {
-                String name = (String) item.get("name");
-                Object criticalObj = item.getOrDefault("critical", true);
-                boolean critical = criticalObj instanceof Boolean ? (Boolean) criticalObj : true;
-                result.add(new PvcCheck(name, critical,
-                    (String) item.getOrDefault("description", name),
-                    (String) item.get("mountPath")));
-            }
-            return result;
-        }
-
-        List<PvcCheck> pvcs = new ArrayList<>();
-        Set<String> nasRoots = new HashSet<>();
-
-        for (FileCheck file : extractFiles()) {
-            if ("nas".equals(file.getLocation())) {
-                String[] parts = file.getPath().split("/");
-                if (parts.length >= 3) {
-                    String nasRoot = "/" + parts[1] + "/" + parts[2];
-                    if (!nasRoots.contains(nasRoot)) {
-                        nasRoots.add(nasRoot);
-                        pvcs.add(new PvcCheck("nas-" + parts[1] + "-" + parts[2], true,
-                            "NAS 스토리지: " + nasRoot, nasRoot));
-                    }
-                }
-            }
-        }
-
-        return pvcs;
-    }
-
-    public static String determineNamespace(String profile) {
-        return switch (profile) {
-            case "dev" -> "development";
-            case "stage" -> "staging";
-            case "prod" -> "production";
-            default -> "default";
-        };
-    }
 }

@@ -82,8 +82,8 @@ public class InfrastructureVerificationInitializer implements ApplicationContext
         if (props.getFailOnError() != null) {
             return props.getFailOnError();
         }
-        // Strict mode for prod, lenient for others (Requirement 7.5, 7.6)
-        return "prod".equals(profile);
+        // Strict mode for prod and stage, lenient for others
+        return "prod".equals(profile) || "stage".equals(profile);
     }
 
     private void handleResults(List<VerificationResult> results, boolean strictMode, long duration) {

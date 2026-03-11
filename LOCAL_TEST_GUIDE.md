@@ -1,6 +1,6 @@
 # 로컬 테스트 가이드 (통합 버전)
 
-이 가이드는 통합된 **Infrastructure Analyzer Plugin**을 로컬 환경에서 테스트하는 방법을 안내합니다.
+이 가이드는 통합된 **Infrastructure Analyzer**를 로컬 환경에서 테스트하는 방법을 안내합니다.
 
 ## 1단계: 모듈 설치 (Maven Local)
 
@@ -13,7 +13,7 @@
 
 **설치 확인:**
 ```bash
-ls -la ~/.m2/repository/io/infracheck/infrastructure-analyzer-plugin/1.0.2/
+ls -la ~/.m2/repository/io/infracheck/infrastructure-analyzer/1.0.0-SNAPSHOT/
 ```
 
 ---
@@ -37,7 +37,7 @@ pluginManagement {
 ```gradle
 plugins {
     // 플러그인만 추가하면 분석(Build-time)과 검증(Runtime) 기능이 모두 활성화됩니다.
-    id 'io.infracheck.infrastructure-analyzer' version '1.0.2'
+    id 'io.infracheck.infrastructure-analyzer' version '1.0.0-SNAPSHOT'
 }
 
 // dependencies { implementation '...' } 섹션에 스타터를 직접 추가할 필요가 없습니다.
@@ -55,11 +55,14 @@ plugins {
 ```
 
 ### 2. 자동 검증 (Runtime)
-애플리케이션을 실행하여 실제 인프라 검증 로그를 확인합니다.
+애플리케이션을 실행하여 실제 인프라 검증 로그를 확인합니다. `local` 및 `dev` 프로파일은 경고만 출력하며, `stage` 및 `prod` 프로파일은 검증 실패 시 기동을 중단하는 엄격 모드(Strict Mode)로 동작합니다.
 
 ```bash
-# prod 프로파일로 실행하여 엄격 모드(Strict Mode) 테스트
-./gradlew bootRun --args='--spring.profiles.active=prod'
+# 기본(local) 프로파일로 실행하여 검증 경고 로그 확인
+./gradlew bootRun --args='--spring.profiles.active=local'
+
+# prod 또는 stage 프로파일로 실행하여 엄격 모드(Strict Mode) 테스트
+./gradlew bootRun --args='--spring.profiles.active=stage'
 ```
 
 **예상 로그:**
@@ -67,6 +70,22 @@ plugins {
 INFO: Starting infrastructure verification (profile: prod, path: requirements-prod.json)
 DEBUG: Verifying API: https://api.company.co.kr
 INFO: Infrastructure verification completed successfully. Passed: 5/5 (120ms)
+```
+
+---
+
+### 💡 참고 사항 (로컬 bootRun 테스트 시)
+
+`bootRun`을 사용해 로컬 환경에서 기동 시점에 검증을 테스트하려면, 로컬 빌드 구조의 특성상 생성된 `requirements-*.json` 파일을 직접 가리키도록 설정해야 합니다. 컨테이너/서버 환경의 완성된 JAR 내부에서는 기본값으로 잘 동작하지만, 로컬 코딩 중에는 아래 설정을 추가해 주세요.
+
+`src/main/resources/application.yml`:
+```yaml
+infrastructure:
+  validation:
+    verification:
+      enabled: true
+      fail-on-error: true
+      requirements-path: "file:build/infrastructure/requirements-{profile}.json"  # 로컬 bootRun 용도
 ```
 
 ---

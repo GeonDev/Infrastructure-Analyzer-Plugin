@@ -1,7 +1,5 @@
 package io.infracheck.gradle.task;
 
-import io.infracheck.core.DeploymentType;
-import io.infracheck.core.analyzer.DeploymentDetector;
 import io.infracheck.core.analyzer.InfrastructureExtractor;
 import io.infracheck.core.model.Requirements;
 import io.infracheck.core.util.ConfigParser;
@@ -11,8 +9,6 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.TaskAction;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.Map;
 
 /**
@@ -20,7 +16,7 @@ import java.util.Map;
  */
 public class InfrastructureAnalyzerTask extends DefaultTask {
 
-    private static final String[] PROFILES = {"dev", "stage", "prod"};
+    private static final String[] PROFILES = {"local", "dev", "stage", "prod"};
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     @TaskAction
@@ -28,9 +24,7 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
         // 0. mavenLocal 사용 경고
         checkMavenLocalUsage();
 
-        // 1. 환경 감지
-        DeploymentType deploymentType = DeploymentDetector.detect(getProject().getProjectDir());
-        getLogger().lifecycle("✅ 감지된 배포 환경: {}", deploymentType);
+        // 1. (삭제됨) 환경 감지 불필요
 
         // 2. 설정 파일 확인
         File projectDir = getProject().getProjectDir();
@@ -54,7 +48,7 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
         }
 
         // 3. 프로파일별 requirements.json 생성
-        File outputDir = getProject().getLayout().getBuildDirectory().dir("infrastructure").get().getAsFile();
+        File outputDir = new File(getProject().getLayout().getBuildDirectory().get().getAsFile(), "generated/resources/infrastructure");
         outputDir.mkdirs();
 
         for (String profile : PROFILES) {
@@ -65,12 +59,7 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
                 config = ConfigParser.parseWithProfile(projectDir, null);
             }
 
-            Requirements requirements;
-            if (deploymentType == DeploymentType.KUBERNETES) {
-                requirements = generateK8sRequirements(profile, config, projectDir);
-            } else {
-                requirements = generateVmRequirements(profile, config, projectDir);
-            }
+            Requirements requirements = generateRequirements(profile, config, projectDir);
 
             // 파일명을 requirements-{profile}.json으로 통일하여 Starter와 호환성 확보
             String filename = "requirements-" + profile + ".json";
@@ -81,39 +70,18 @@ public class InfrastructureAnalyzerTask extends DefaultTask {
         }
     }
 
-    private Requirements generateVmRequirements(String profile, Map<String, Object> config, File projectDir) {
+    private Requirements generateRequirements(String profile, Map<String, Object> config, File projectDir) {
         InfrastructureExtractor extractor = new InfrastructureExtractor(config, projectDir);
 
         Requirements req = new Requirements();
         req.setProject(getProject().getName());
         req.setEnvironment(profile);
-        req.setPlatform("vm");
 
         Requirements.Infrastructure infra = req.getInfrastructure();
         infra.setCompany_domain(extractor.getCompanyDomain());
         infra.setFiles(extractor.extractFiles());
         infra.setExternal_apis(extractor.extractApis());
         infra.setDirectories(extractor.extractDirectories());
-
-        return req;
-    }
-
-    private Requirements generateK8sRequirements(String profile, Map<String, Object> config, File projectDir) {
-        InfrastructureExtractor extractor = new InfrastructureExtractor(config, projectDir);
-
-        Requirements req = new Requirements();
-        req.setProject(getProject().getName());
-        req.setEnvironment(profile);
-        req.setPlatform("kubernetes");
-
-        Requirements.Infrastructure infra = req.getInfrastructure();
-        infra.setCompany_domain(extractor.getCompanyDomain());
-        infra.setNamespace(InfrastructureExtractor.determineNamespace(profile));
-        infra.setFiles(extractor.extractFiles());
-        infra.setExternal_apis(extractor.extractApis());
-        infra.setConfigmaps(extractor.extractConfigMaps());
-        infra.setSecrets(extractor.extractSecrets());
-        infra.setPvcs(extractor.extractPvcs());
 
         return req;
     }
