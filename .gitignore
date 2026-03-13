@@ -20,6 +20,10 @@
 **/target/
 !**/src/**/target/
 
+
+# ===== Kiro AI =====
+/.kiro/
+
 # ===== IDE - IntelliJ IDEA =====
 /.idea/
 *.iml
@@ -65,3 +69,4 @@ replay_pid*
 # ===== 기타 =====
 .mtj.tmp/
 *.ctxt
+.kiro/
