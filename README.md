@@ -31,13 +31,17 @@ infrastructure-analyzer/
 
 ## 설치 및 배포
 
-단 한 번의 빌드로 모든 컴포넌트가 설치됩니다.
+단 한 번의 빌드로 모든 컴포넌트가 설치됩니다. 보안을 위해 `.env` 파일에 GitHub/Nexus 인증 정보를 설정한 후 실행하세요.
 
 ```bash
+# .env 파일 생성 (프로젝트 루트)
+# GITHUB_ACTOR=your_id
+# GITHUB_TOKEN=your_token
+
 # 로컬 Maven 저장소에 설치 (테스트용)
 ./gradlew clean publishToMavenLocal
 
-# 원격 저장소(Nexus)에 배포
+# 원격 저장소(GitHub Packages)에 배포
 ./gradlew publish
 ```
 

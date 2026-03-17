@@ -23,15 +23,16 @@
 ### 방법 A: 플러그인 방식 (권장 ⭐)
 빌드 시 소스 코드를 자동으로 스캔하여 인프라 명세(`requirements.json`)를 생성하고, **런타임 검증 라이브러리(Starter)까지 자동으로 의존성에 포함**합니다.
 
-**settings.gradle:** (플러그인 탐색을 위해 필요)
+**settings.gradle:** (보안을 위해 `.env` 파일 사용 권장)
 ```gradle
 pluginManagement {
     repositories {
         maven {
             url = uri("https://maven.pkg.github.com/GeonDev/Infrastructure-Analyzer-Plugin")
             credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: "YOUR_USERNAME"
-                password = System.getenv("GITHUB_TOKEN") ?: "YOUR_TOKEN"
+                // .env 파일의 GITHUB_ACTOR, GITHUB_TOKEN을 자동으로 활용할 수 있습니다.
+                username = settings.ext.has("GITHUB_ACTOR") ? settings.ext.get("GITHUB_ACTOR") : System.getenv("GITHUB_ACTOR")
+                password = settings.ext.has("GITHUB_TOKEN") ? settings.ext.get("GITHUB_TOKEN") : System.getenv("GITHUB_TOKEN")
             }
         }
         gradlePluginPortal()
@@ -42,7 +43,10 @@ pluginManagement {
 **build.gradle:**
 ```gradle
 plugins {
-    // 이 한 줄만 추가하면 빌드 타임 스캔 + 런타임 자동 검증이 모두 활성화됩니다.
+    // 1. 환경 변수 로드 플러그인 (선택 사항이나 권장)
+    id 'co.uzzu.dotenv.gradle' version '4.0.0'
+    
+    // 2. 인프라 분석 및 검증 플러그인
     id 'io.infracheck.infrastructure-analyzer' version '1.0.0-SNAPSHOT'
 }
 
@@ -50,8 +54,8 @@ repositories {
     maven {
         url = uri("https://maven.pkg.github.com/GeonDev/Infrastructure-Analyzer-Plugin")
         credentials {
-            username = System.getenv("GITHUB_ACTOR")
-            password = System.getenv("GITHUB_TOKEN")
+            username = project.findProperty("GITHUB_ACTOR") ?: System.getenv("GITHUB_ACTOR")
+            password = project.findProperty("GITHUB_TOKEN") ?: System.getenv("GITHUB_TOKEN")
         }
     }
     mavenCentral()
