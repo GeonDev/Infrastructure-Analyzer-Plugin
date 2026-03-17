@@ -96,5 +96,6 @@ infrastructure:
 ---
 
 ## 상세 가이드
+- [사용자 가이드 (설정 및 배포)](USAGE_GUIDE.md)
 - [로컬 테스트 가이드](LOCAL_TEST_GUIDE.md)
 - [디자인 문서](.kiro/specs/runtime-verification-starter/design.md)

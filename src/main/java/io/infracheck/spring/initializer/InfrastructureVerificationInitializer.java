@@ -13,15 +13,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.env.EnumerablePropertySource;
-import org.springframework.core.env.PropertySource;
 import org.springframework.boot.context.properties.bind.Binder;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class InfrastructureVerificationInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+public class InfrastructureVerificationInitializer
+        implements ApplicationContextInitializer<ConfigurableApplicationContext> {
     private static final Logger log = LoggerFactory.getLogger(InfrastructureVerificationInitializer.class);
 
     @Override
@@ -45,7 +44,7 @@ public class InfrastructureVerificationInitializer implements ApplicationContext
             return;
         }
 
-        log.info("Starting infrastructure verification (profile: {}, path: {})", 
+        log.info("Starting infrastructure verification (profile: {}, path: {})",
                 profile, properties.getRequirementsPath().replace("{profile}", profile));
 
         long startTime = System.currentTimeMillis();
@@ -58,7 +57,7 @@ public class InfrastructureVerificationInitializer implements ApplicationContext
 
         long duration = System.currentTimeMillis() - startTime;
         boolean strictMode = determineStrictMode(profile, properties);
-        
+
         handleResults(results, strictMode, duration);
     }
 
@@ -95,17 +94,17 @@ public class InfrastructureVerificationInitializer implements ApplicationContext
         long passedCount = total - failedCount;
 
         if (failedCount == 0) {
-            log.info("Infrastructure verification completed successfully. Passed: {}/{} ({}ms)", 
+            log.info("Infrastructure verification completed successfully. Passed: {}/{} ({}ms)",
                     passedCount, total, duration);
             return;
         }
 
-        String level = strictMode ? "ERROR" : "WARN";
-        log.info("Infrastructure verification completed with failures. Passed: {}, Failed: {}/{} ({}ms)", 
+        log.info("Infrastructure verification completed with failures. Passed: {}, Failed: {}/{} ({}ms)",
                 passedCount, failedCount, total, duration);
 
         for (VerificationResult failure : failures) {
-            String msg = String.format("[%s] %s: %s", failure.getType().toUpperCase(), failure.getIdentifier(), failure.getErrorMessage());
+            String msg = String.format("[%s] %s: %s", failure.getType().toUpperCase(), failure.getIdentifier(),
+                    failure.getErrorMessage());
             if (strictMode) {
                 log.error(msg);
             } else {

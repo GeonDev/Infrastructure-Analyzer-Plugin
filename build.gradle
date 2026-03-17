@@ -27,7 +27,6 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.7'
 
     // 2. Spring Boot Starter 의존성들 (통합됨)
-    // 애플리케이션 JAR에 Gradle/Maven API가 들어가지 않도록 compileOnly 권장
     compileOnly 'org.springframework.boot:spring-boot-starter:3.1.0'
     compileOnly 'org.springframework.boot:spring-boot-configuration-processor:3.1.0'
 
@@ -53,7 +52,19 @@ gradlePlugin {
 }
 
 publishing {
+    publications {
+        gpr(MavenPublication) {
+            from components.java
+        }
+    }
     repositories {
-        mavenLocal()
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/GeonDev/Infrastructure-Analyzer-Plugin")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("gpr.user") as String
+                password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("gpr.key") as String
+            }
+        }
     }
 }
