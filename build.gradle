@@ -1,6 +1,7 @@
 plugins {
     id 'java-gradle-plugin'
     id 'maven-publish'
+    id 'io.github.cdimascio.dotenv' version '3.0.0'
 }
 
 group = 'io.infracheck'
