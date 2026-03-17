@@ -65,8 +65,8 @@ publishing {
             credentials {
                 // 플러그인이 .env 파일의 변수들을 project.findProperty()로 자동 매핑해줍니다.
                 // 시스템 환경 변수가 있으면 우선적으로 사용됩니다.
-                username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("GITHUB_ACTOR") ?: project.findProperty("gpr.user") as String?
-                password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("GITHUB_TOKEN") ?: project.findProperty("gpr.key") as String?
+                username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("GITHUB_ACTOR") ?: project.findProperty("gpr.user")
+                password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("GITHUB_TOKEN") ?: project.findProperty("gpr.key")
             }
         }
     }
