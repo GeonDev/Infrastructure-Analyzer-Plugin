@@ -1,110 +1,92 @@
 # 로컬 테스트 가이드 (통합 버전)
 
-이 가이드는 통합된 **Infrastructure Analyzer**를 로컬 환경에서 테스트하는 방법을 안내합니다.
+이 가이드는 로컬 개발 환경에서 패키지를 빌드하고, 원격 저장소(GitHub/Nexus)에 배포하여 최종적으로 테스트 프로젝트에 적용하는 전 과정을 안내합니다.
 
-## 1단계: 모듈 설치 (Maven Local)
+## 1단계: 로컬 테스트 (Maven Local)
 
-루트 프로젝트에서 단 한 번의 명령으로 모든 기능이 포함된 JAR를 로컬 저장소(`~/.m2/repository/`)에 설치합니다.
+가장 빠르게 수정 사항을 확인하는 방법입니다.
 
 ```bash
-# 프로젝트 루트에서 실행
+# 1. 로컬 저장소(~/.m2/)에 설치
 ./gradlew clean publishToMavenLocal
-```
 
-**설치 확인:**
-```bash
-ls -la ~/.m2/repository/io/infracheck/infrastructure-analyzer/1.0.0-SNAPSHOT/
-```
-
----
-
-## 2단계: 테스트 프로젝트 설정
-
-테스트할 Spring Boot 프로젝트의 `settings.gradle`과 `build.gradle`을 다음과 같이 설정합니다.
-
-#### settings.gradle (테스트 프로젝트)
-```gradle
+# 2. 테스트 프로젝트의 settings.gradle 설정
 pluginManagement {
     repositories {
-        mavenLocal()  // 로컬 저장소 우선 탐색
+        mavenLocal()
         gradlePluginPortal()
         mavenCentral()
     }
 }
 ```
 
-#### build.gradle (테스트 프로젝트)
-```gradle
-plugins {
-    // 플러그인만 추가하면 분석(Build-time)과 검증(Runtime) 기능이 모두 활성화됩니다.
-    id 'io.infracheck.infrastructure-analyzer' version '1.0.0-SNAPSHOT'
-}
-
-// dependencies { implementation '...' } 섹션에 스타터를 직접 추가할 필요가 없습니다.
-```
-
 ---
 
-## 3단계: 인프라 명세 생성 및 검증 테스트
+## 2단계: 원격 저장소 배포 (Remote Publish)
 
-### 1. 명세 생성 (Build-time)
-빌드를 수행하여 `requirements-{profile}.json` 파일들이 생성되는지 확인합니다.
+로컬 테스트가 끝났다면 실제 환경(GitHub Packages 또는 Nexus)에 배포합니다.
 
+### 2.1 GitHub Packages에 배포
+- **배포:** `main` 브랜치에 푸시하면 GitHub Actions가 자동으로 수행합니다.
+- **수동 배포:**
 ```bash
-./gradlew analyzeInfrastructure
-```
-
-### 2. 자동 검증 (Runtime)
-애플리케이션을 실행하여 실제 인프라 검증 로그를 확인합니다. `local` 및 `dev` 프로파일은 경고만 출력하며, `stage` 및 `prod` 프로파일은 검증 실패 시 기동을 중단하는 엄격 모드(Strict Mode)로 동작합니다.
-
-```bash
-# 기본(local) 프로파일로 실행하여 검증 경고 로그 확인
-./gradlew bootRun --args='--spring.profiles.active=local'
-
-# prod 또는 stage 프로파일로 실행하여 엄격 모드(Strict Mode) 테스트
-./gradlew bootRun --args='--spring.profiles.active=stage'
-```
-
-**예상 로그:**
-```
-INFO: Starting infrastructure verification (profile: prod, path: requirements-prod.json)
-DEBUG: Verifying API: https://api.company.co.kr
-INFO: Infrastructure verification completed successfully. Passed: 5/5 (120ms)
-```
-
----
-
-### 💡 참고 사항 (로컬 bootRun 테스트 시)
-
-`bootRun`을 사용해 로컬 환경에서 기동 시점에 검증을 테스트하려면, 로컬 빌드 구조의 특성상 생성된 `requirements-*.json` 파일을 직접 가리키도록 설정해야 합니다. 컨테이너/서버 환경의 완성된 JAR 내부에서는 기본값으로 잘 동작하지만, 로컬 코딩 중에는 아래 설정을 추가해 주세요.
-
-`src/main/resources/application.yml`:
-```yaml
-infrastructure:
-  validation:
-    verification:
-      enabled: true
-      fail-on-error: true
-      requirements-path: "file:build/infrastructure/requirements-{profile}.json"  # 로컬 bootRun 용도
-```
-
----
-
-## 트러블슈팅
-
-### 캐시 문제
-수정 사항이 반영되지 않을 경우 로컬 캐시를 삭제하고 재빌드하세요.
-```bash
-rm -rf ~/.gradle/caches/modules-2/files-2.1/io.infracheck/
-./gradlew clean build --refresh-dependencies
-```
-
----
-
-## 원격 배포 (Nexus)
-테스트가 완료되면 Nexus 저장소에 배포합니다.
-```bash
-export NEXUS_USERNAME="user"
-export NEXUS_PASSWORD="password"
+export GITHUB_ACTOR="GeonDev"
+export GITHUB_TOKEN="your_personal_access_token"
 ./gradlew publish
 ```
+
+### 2.2 Nexus에 배포 (필요 시 build.gradle 수정)
+Nexus 주소와 계정 정보를 설정하고 배포합니다.
+```bash
+export NEXUS_USERNAME="admin"
+export NEXUS_PASSWORD="password"
+./gradlew publish -Pgpr.user=$NEXUS_USERNAME -Pgpr.key=$NEXUS_PASSWORD
+```
+
+---
+
+## 3단계: 원격 저장소 활용 테스트 (Remote Repo Test)
+
+배포된 패키지를 실제 서비스 프로젝트에서 가져오는지 테스트합니다.
+
+### 3.1 GitHub Packages 기반 테스트
+**settings.gradle:**
+```gradle
+pluginManagement {
+    repositories {
+        maven {
+            url = uri("https://maven.pkg.github.com/GeonDev/Infrastructure-Analyzer-Plugin")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+        gradlePluginPortal()
+    }
+}
+```
+
+### 3.2 Nexus 기반 테스트
+**settings.gradle:**
+```gradle
+pluginManagement {
+    repositories {
+        maven {
+            url = uri("http://your-nexus-server/repository/maven-public/")
+            credentials {
+                username = "nexus_user"
+                password = "nexus_password"
+            }
+        }
+        gradlePluginPortal()
+    }
+}
+```
+
+---
+
+## 💡 주요 팁
+
+- **버전 관리:** 테스트 중에는 `1.0.0-SNAPSHOT` 버전을 사용하여 캐시 문제를 피하세요.
+- **인증 오류:** GitHub Packages는 `read:packages` 권한이 있는 PAT가 필요하며, Nexus는 해당 레포지토리에 대한 읽기 권한이 필요합니다.
+- **플러그인 적용:** `plugins { id 'io.infracheck.infrastructure-analyzer' version '1.0.0-SNAPSHOT' }` 선언만으로 모든 인프라 체크가 준비됩니다.
